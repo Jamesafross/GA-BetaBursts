@@ -1,0 +1,7 @@
+CompileFlags:
+  Add:
+    - -Iinclude
+    - -std=c++17
+    - -Wall
+    - -Wextra
+    - -fopenmp
