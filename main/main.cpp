@@ -53,10 +53,11 @@ int main() {
     th_params.downsampled_rate = 100.0;
     th_params.percentile_threshold = 0.75;
     th_params.min_burst_duration_s = 0.05;
+    th_params.zscore_threshold = 2.0;
     th_params.merge_gap_s = 0.03;
     th_params.beta_low = 13.0;
     th_params.beta_high = 30.0;
-    th_params.threshold_type = ThresholdType::ZScore;
+    th_params.threshold_type = ThresholdType::Percentile;
 
     std::filesystem::create_directories(OUTPUT_PATH + "/meg");
     generate_real_stats(th_params);

@@ -25,31 +25,16 @@ int get_best_phenotype_id(const std::string &summary_path) {
     nlohmann::json json_data;
     infile >> json_data;
 
-    if (!json_data.contains("phenotypes") || !json_data["phenotypes"].is_array()) {
-        throw std::runtime_error("Missing or invalid 'phenotypes' array in summary.");
+    if (!json_data.is_array() || json_data.empty()) {
+        throw std::runtime_error("summary.json is not a non-empty array.");
     }
 
-    const auto &phenotypes = json_data["phenotypes"];
+    const auto &latest_entry = json_data.back();
 
-    int best_id = -1;
-    double best_fitness = -std::numeric_limits<double>::infinity();
-
-    for (const auto &pheno : phenotypes) {
-        if (!pheno.is_object())
-            continue;
-
-        int id = pheno.value("id", -1);
-        double fitness = pheno.value("fitness", -std::numeric_limits<double>::infinity());
-
-        if (id >= 0 && fitness > best_fitness) {
-            best_fitness = fitness;
-            best_id = id;
-        }
+    if (!latest_entry.contains("best_phenotype") ||
+        !latest_entry["best_phenotype"].is_number_integer()) {
+        throw std::runtime_error("Missing or invalid 'best_phenotype' in summary.json.");
     }
 
-    if (best_id == -1) {
-        throw std::runtime_error("No valid phenotypes found in summary.");
-    }
-
-    return best_id;
+    return latest_entry["best_phenotype"];
 }
