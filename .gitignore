@@ -35,6 +35,7 @@ __pycache__/
 *.jpg
 *.gif
 
+
 # Logs and temp files
 *.log
 *.tmp
