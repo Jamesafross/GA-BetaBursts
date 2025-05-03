@@ -64,10 +64,10 @@ struct ParameterBounds {
     double alphaii_min = 0.01, alphaii_max = 1.0;
 
     // === Synaptic couplings ===
-    double kappa_see_min = 0.01, kappa_see_max = 10.0;
-    double kappa_sei_min = 0.01, kappa_sei_max = 10.0;
-    double kappa_sie_min = 0.01, kappa_sie_max = 10.0;
-    double kappa_sii_min = 0.01, kappa_sii_max = 10.0;
+    double kappa_see_min = 0.01, kappa_see_max = 15.0;
+    double kappa_sei_min = 0.01, kappa_sei_max = 15.0;
+    double kappa_sie_min = 0.01, kappa_sie_max = 15.0;
+    double kappa_sii_min = 0.01, kappa_sii_max = 15.0;
 
     // === Gap junction couplings ===
     double kappa_gapee_min = 0.0, kappa_gapee_max = 0.2;
@@ -75,8 +75,8 @@ struct ParameterBounds {
     double kappa_gapii_min = 0.0, kappa_gapii_max = 0.8;
 
     // === Reversal potentials ===
-    double vsyn_ee_min = 1.0, vsyn_ee_max = 20.0;
-    double vsyn_ei_min = 1.0, vsyn_ei_max = 20.0;
+    double vsyn_ee_min = 1.0, vsyn_ee_max = 30.0;
+    double vsyn_ei_min = 1.0, vsyn_ei_max = 30.0;
     double vsyn_ie_min = -100.0, vsyn_ie_max = -1.0;
     double vsyn_ii_min = -100.0, vsyn_ii_max = -1.0;
 
@@ -91,8 +91,8 @@ struct ParameterBounds {
     double deltai_min = 0.05, deltai_max = 0.6;
 
     // === Noise amplitudes ===
-    double sigma_se_min = 0.01, sigma_se_max = 0.1;
-    double sigma_si_min = 0.01, sigma_si_max = 0.1;
+    double sigma_se_min = 0.005, sigma_se_max = 0.1;
+    double sigma_si_min = 0.005, sigma_si_max = 0.1;
 
     // === Mean inputs ===
     double eta0e_min = 0.0, eta0e_max = 5.0;

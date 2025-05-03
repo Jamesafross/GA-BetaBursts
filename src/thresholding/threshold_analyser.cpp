@@ -31,6 +31,23 @@ std::vector<double> SignalProcessor::downsample(const std::vector<double> &signa
     return result;
 }
 
+void SignalProcessor::normalize_zscore(std::vector<double> &data) {
+    if (data.empty())
+        return;
+
+    double mean = std::accumulate(data.begin(), data.end(), 0.0) / data.size();
+    double sq_sum = std::inner_product(data.begin(), data.end(), data.begin(), 0.0);
+    double variance = sq_sum / data.size() - mean * mean;
+    double stddev = std::sqrt(variance);
+
+    if (stddev == 0.0)
+        return; // Prevent division by zero
+
+    for (auto &val : data) {
+        val = (val - mean) / stddev;
+    }
+}
+
 // === Bandpass Filtering ===
 std::vector<double> SignalProcessor::bandpass_filter(const std::vector<double> &signal) const {
     double fs = p.original_fs;
@@ -171,6 +188,7 @@ BurstStats SignalProcessor::analyze_current_trace(const std::vector<double> &sig
     auto smoothed = lowpass_filter(filtered);
     auto downsampled = downsample(smoothed);
     auto envelope = compute_envelope(downsampled);
+    normalize_zscore(envelope);
     auto raw_bursts = detect_bursts(envelope);
 
     std::vector<std::pair<int, int>> filtered_bursts;
