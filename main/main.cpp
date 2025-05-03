@@ -10,6 +10,7 @@
 #include "neural_mass_model/parameter_utils.hpp"
 #include "paths.hpp"
 #include "thresholding/threshold_structs.h"
+#include "utils/python_plot.hpp"
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -55,7 +56,9 @@ int main() {
     th_params.merge_gap_s = 0.03;
     th_params.beta_low = 13.0;
     th_params.beta_high = 30.0;
+    th_params.threshold_type = ThresholdType::ZScore;
 
+    std::filesystem::create_directories(OUTPUT_PATH + "/meg");
     generate_real_stats(th_params);
 
     // logging
@@ -118,6 +121,10 @@ int main() {
 
         // or whatever generation index you're on
         logger.append_summary_from_directory(params_dir, gen);
+
+        // plot violins
+        auto best_id = get_best_phenotype_id(summary_path);
+        run_violin_plot(gen, best_id);
 
         // --- Clean up large simulated files ---
         cleanup_simulated_data(sim_dir);

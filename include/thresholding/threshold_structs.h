@@ -1,18 +1,20 @@
 #ifndef THRESHOLD_STRUCTS_H
 #define THRESHOLD_STRUCTS_H
 
-#include <cstddef>
+// Add this to the top or inside a relevant namespace
+enum class ThresholdType { Percentile, ZScore };
 
-
+// Update ThresholdParameters
 struct ThresholdParameters {
-    //DEFAULTS
-    double original_fs = 200.0;            // Sampling rate of input data (Hz)
-    double downsampled_rate = 100.0;       // Downsample rate (Hz) - can be same as original
-    double percentile_threshold = 0.75;    // e.g. 75th percentile
-    double min_burst_duration_s = 0.05;    // Minimum duration in seconds
-    double merge_gap_s = 0.03;             // Max gap for merging bursts (s)
-    double beta_low = 13.0;
-    double beta_high = 30.0;
+    double original_fs;
+    double downsampled_rate;
+    double beta_low;
+    double beta_high;
+    double percentile_threshold = 0.95;
+    double zscore_threshold = 2.0;
+    ThresholdType threshold_type = ThresholdType::Percentile;
+    double min_burst_duration_s = 0.05;
+    double merge_gap_s = 0.03;
 };
 
 struct BurstStats {
@@ -21,4 +23,4 @@ struct BurstStats {
     double mean_amplitude;
 };
 
-#endif 
+#endif

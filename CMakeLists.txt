@@ -27,6 +27,12 @@ include_directories(
 set(DATA_DIR "${PROJECT_SOURCE_DIR}/data")
 set(OUTPUT_DIR "${PROJECT_SOURCE_DIR}/output")
 
+# Set absolute path to the python_plotting directory
+set(PYTHON_PLOTTING_DIR "${CMAKE_SOURCE_DIR}/python_plotting")
+
+# Pass it as a definition to the compiler
+add_definitions(-DPYTHON_PLOTTING_DIR="${PYTHON_PLOTTING_DIR}")
+
 # === Shared sources ===
 file(GLOB_RECURSE SUPPORT_SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
