@@ -35,7 +35,7 @@ __pycache__/
 *.jpg
 *.gif
 
-
+output/model/**/*.json
 # Logs and temp files
 *.log
 *.tmp
