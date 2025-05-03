@@ -124,5 +124,11 @@
         "best_phenotype": 43,
         "generation": 20,
         "mean_fitness": 43.33710849449414
+    },
+    {
+        "best_fitness": 4.060341431131401,
+        "best_phenotype": 31,
+        "generation": 21,
+        "mean_fitness": 36.96475910750635
     }
 ]
