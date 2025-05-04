@@ -41,7 +41,7 @@ const std::string meg_output_dir = OUTPUT_PATH + "/meg";
 int main() {
     GAParameters ga_p;
     ThresholdParameters th_params;
-    FitnessEvaluator evaluator;
+    FitnessEvaluator evaluator(0.1);
     Selection selection;
     GeneticOperators genetic_operators(ga_p.mutation_rate, 0.2, ga_p.num_generations);
 

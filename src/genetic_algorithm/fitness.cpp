@@ -1,34 +1,47 @@
 #include "genetic_algorithm/fitness.hpp"
-#include <fstream>
-#include <sstream>
-#include <stdexcept>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <numeric>
+#include <sstream>
+#include <stdexcept>
 
 // === Main fitness method ===
-double FitnessEvaluator::compute_fitness(const std::vector<double>& model_rate,
-                                         const std::vector<double>& model_duration,
-                                         const std::vector<double>& model_amplitude,
-                                         const std::vector<double>& real_rate,
-                                         const std::vector<double>& real_duration,
-                                         const std::vector<double>& real_amplitude) const
-{
-    double max_rate     = *std::max_element(real_rate.begin(), real_rate.end());
+double FitnessEvaluator::compute_fitness(const std::vector<double> &model_rate,
+                                         const std::vector<double> &model_duration,
+                                         const std::vector<double> &model_amplitude,
+                                         const std::vector<double> &real_rate,
+                                         const std::vector<double> &real_duration,
+                                         const std::vector<double> &real_amplitude) const {
+    double max_rate = *std::max_element(real_rate.begin(), real_rate.end());
     double max_duration = *std::max_element(real_duration.begin(), real_duration.end());
-    double max_amplitude= *std::max_element(real_amplitude.begin(), real_amplitude.end());
+    double max_amplitude = *std::max_element(real_amplitude.begin(), real_amplitude.end());
 
-    double weight_rate     = (max_rate > 0.0)     ? 1.0 / max_rate     : 1.0;
+    double weight_rate = (max_rate > 0.0) ? 1.0 / max_rate : 1.0;
     double weight_duration = (max_duration > 0.0) ? 1.0 / max_duration : 1.0;
-    double weight_amplitude= (max_amplitude > 0.0)? 1.0 / max_amplitude: 1.0;
+    double weight_amplitude = (max_amplitude > 0.0) ? 1.0 / max_amplitude : 1.0;
 
-    return weight_rate     * wasserstein_distance(model_rate, real_rate) +
-           weight_duration * wasserstein_distance(model_duration, real_duration) +
-           weight_amplitude* wasserstein_distance(model_amplitude, real_amplitude);
+    auto stat_diff = [&](const std::vector<double> &m, const std::vector<double> &r) {
+        return std::abs(mean(m) - mean(r)) + std::abs(stddev(m) - stddev(r)) +
+               std::abs(skewness(m) - skewness(r)) + std::abs(kurtosis(m) - kurtosis(r));
+    };
+
+    double stat_rate = weight_rate * stat_diff(model_rate, real_rate);
+    double stat_duration = weight_duration * stat_diff(model_duration, real_duration);
+    double stat_amplitude = weight_amplitude * stat_diff(model_amplitude, real_amplitude);
+
+    auto emd_rate = weight_rate * wasserstein_distance(model_rate, real_rate);
+    auto emd_duration = weight_duration * wasserstein_distance(model_duration, real_duration);
+    auto emd_amplitude = weight_amplitude * wasserstein_distance(model_amplitude, real_amplitude);
+
+    return emd_rate + emd_duration + emd_amplitude +
+           stats_weight * (stat_rate + stat_duration + stat_amplitude);
 }
 
 // === Distance calculation ===
 double FitnessEvaluator::wasserstein_distance(std::vector<double> x, std::vector<double> y) const {
-    if (x.empty() || y.empty()) throw std::invalid_argument("Input distributions must not be empty.");
+    if (x.empty() || y.empty())
+        throw std::invalid_argument("Input distributions must not be empty.");
 
     std::sort(x.begin(), x.end());
     std::sort(y.begin(), y.end());
@@ -69,15 +82,17 @@ double FitnessEvaluator::wasserstein_distance(std::vector<double> x, std::vector
 
 // === CSV Column Loader ===
 std::unordered_map<std::string, std::vector<double>>
-FitnessEvaluator::load_columns_by_name(const std::string& filename) const {
+FitnessEvaluator::load_columns_by_name(const std::string &filename) const {
     std::ifstream file(filename);
-    if (!file.is_open()) throw std::runtime_error("Failed to open file: " + filename);
+    if (!file.is_open())
+        throw std::runtime_error("Failed to open file: " + filename);
 
     std::unordered_map<std::string, std::vector<double>> columns;
     std::vector<std::string> headers;
 
     std::string line;
-    if (!std::getline(file, line)) throw std::runtime_error("Empty file: " + filename);
+    if (!std::getline(file, line))
+        throw std::runtime_error("Empty file: " + filename);
     std::istringstream header_stream(line);
     std::string header;
     while (std::getline(header_stream, header, ',')) {
@@ -92,7 +107,8 @@ FitnessEvaluator::load_columns_by_name(const std::string& filename) const {
         while (std::getline(ss, token, ',') && col < headers.size()) {
             try {
                 columns[headers[col]].push_back(std::stod(token));
-            } catch (...) {}
+            } catch (...) {
+            }
             ++col;
         }
     }
@@ -101,11 +117,45 @@ FitnessEvaluator::load_columns_by_name(const std::string& filename) const {
 }
 
 // === Wrapper to compute fitness from two files ===
-double FitnessEvaluator::compute_fitness_from_csv(const std::string& model_file,
-                                                  const std::string& real_file) const {
+double FitnessEvaluator::compute_fitness_from_csv(const std::string &model_file,
+                                                  const std::string &real_file) const {
     auto model = load_columns_by_name(model_file);
-    auto real  = load_columns_by_name(real_file);
+    auto real = load_columns_by_name(real_file);
 
-    return compute_fitness(model["burst_rate"],     model["mean_duration"],     model["mean_amplitude"],
-                           real["burst_rate"],      real["mean_duration"],      real["mean_amplitude"]);
+    return compute_fitness(model["burst_rate"], model["mean_duration"], model["mean_amplitude"],
+                           real["burst_rate"], real["mean_duration"], real["mean_amplitude"]);
+}
+
+double FitnessEvaluator::mean(const std::vector<double> &v) const {
+    if (v.empty())
+        return 0.0;
+    return std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+}
+
+double FitnessEvaluator::stddev(const std::vector<double> &v) const {
+    double m = mean(v);
+    double accum = 0.0;
+    for (double x : v)
+        accum += (x - m) * (x - m);
+    return std::sqrt(accum / v.size());
+}
+
+double FitnessEvaluator::skewness(const std::vector<double> &v) const {
+    double m = mean(v), s = stddev(v);
+    if (s == 0.0)
+        return 0.0;
+    double accum = 0.0;
+    for (double x : v)
+        accum += std::pow((x - m) / s, 3);
+    return accum / v.size();
+}
+
+double FitnessEvaluator::kurtosis(const std::vector<double> &v) const {
+    double m = mean(v), s = stddev(v);
+    if (s == 0.0)
+        return 0.0;
+    double accum = 0.0;
+    for (double x : v)
+        accum += std::pow((x - m) / s, 4);
+    return accum / v.size(); // Excess kurtosis
 }
