@@ -6,6 +6,8 @@
 #include <sstream>
 #include <stdexcept>
 
+FitnessEvaluator::FitnessEvaluator(double stats_weight) : stats_weight(stats_weight) {}
+
 // === Main fitness method ===
 double FitnessEvaluator::compute_fitness(const std::vector<double> &model_rate,
                                          const std::vector<double> &model_duration,
