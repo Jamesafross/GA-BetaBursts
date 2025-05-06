@@ -103,7 +103,7 @@ struct SolverParameters {
     double dt = 0.01;                 // time step in milliseconds (ms)
     double t_seconds = 100.0;         // total simulation time in seconds
     double save_start_seconds = 20.0; // start saving after this many seconds
-    size_t n_trial = 200;
+    size_t n_trial = 100;
 
     double fs = 200.0; // desired saving frequency in Hz
 

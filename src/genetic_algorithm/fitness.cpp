@@ -8,6 +8,8 @@
 #include <sstream>
 #include <stdexcept>
 
+FitnessEvaluator::FitnessEvaluator() = default;
+
 // === Main fitness method ===
 FitnessResult FitnessEvaluator::compute_fitness(
     const std::vector<double> &model_rate, const std::vector<double> &model_duration,
