@@ -92,6 +92,7 @@ void save_parameters_with_fitness(const ModelParameters &p, FitnessResult result
     j["parameters"] = p; // relies on a working to_json(ModelParameters, json&) function
     j["fitness"] = result.total;
     j["emd_fitness"] = result.emd_fitness;
+    j["stat_fitness"] = result.stat_fitness;
     j["ks_fitness"] = result.ks_fitness;
     j["timestamp"] = std::time(nullptr); // optional: Unix timestamp
     j["generation"] = 0;                 // optional: default to 0 unless provided elsewhere
