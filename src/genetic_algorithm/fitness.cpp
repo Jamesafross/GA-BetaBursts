@@ -8,14 +8,12 @@
 #include <sstream>
 #include <stdexcept>
 
-FitnessEvaluator::FitnessEvaluator(double stats_weight) : stats_weight(stats_weight) {}
-
 // === Main fitness method ===
 FitnessResult FitnessEvaluator::compute_fitness(
     const std::vector<double> &model_rate, const std::vector<double> &model_duration,
     const std::vector<double> &model_amplitude, const std::vector<double> &real_rate,
     const std::vector<double> &real_duration, const std::vector<double> &real_amplitude,
-    double last_gen_mean_emd, double last_gen_mean_ks) const {
+    double last_gen_mean_emd, double last_gen_mean_ks, double last_gen_mean_stat) const {
 
     constexpr double eps = 1e-8;
 
@@ -35,6 +33,11 @@ FitnessResult FitnessEvaluator::compute_fitness(
 
     double total_emd = emd_rate + emd_duration + emd_amplitude;
 
+    double stat_rate = stat_diff(model_rate, real_rate);
+    double stat_duration = stat_diff(model_duration, real_duration);
+    double stat_amplitude = stat_diff(model_amplitude, real_amplitude);
+    double total_stat = stat_rate + stat_duration + stat_amplitude;
+
     // KS
     double ks_rate = ks_distance(model_rate, real_rate);
     double ks_duration = ks_distance(model_duration, real_duration);
@@ -45,11 +48,15 @@ FitnessResult FitnessEvaluator::compute_fitness(
     // Dynamically weight each part relative to previous generation mean
     double norm_emd = total_emd / (last_gen_mean_emd + eps);
     double norm_ks = total_ks / (last_gen_mean_ks + eps);
+    double norm_stat = total_stat / (last_gen_mean_stat + eps);
 
     // Final fitness: adaptively normalized components
-    double total_fitness = norm_emd + norm_ks;
+    double total_fitness = norm_emd + norm_ks + norm_stat;
 
-    return FitnessResult{.total = total_fitness, .emd_fitness = total_emd, .ks_fitness = total_ks};
+    return FitnessResult{.total = total_fitness,
+                         .emd_fitness = total_emd,
+                         .ks_fitness = total_ks,
+                         .stat_fitness = total_stat};
 }
 
 // === Distance calculation ===
@@ -163,8 +170,9 @@ FitnessResult FitnessEvaluator::compute_fitness_from_csv(const std::string &mode
                                                          const std::string &summary_json) const {
     auto model = load_columns_by_name(model_file);
     auto real = load_columns_by_name(real_file);
-    double last_gen_mean_emd = 1.0; // default fallback
-    double last_gen_mean_ks = 1.0;  // default fallback
+    double last_gen_mean_emd = 1.0;  // default fallback
+    double last_gen_mean_ks = 1.0;   // default fallback
+    double last_gen_mean_stat = 1.0; // default fallback
     nlohmann::json summary;
     std::ifstream in(summary_json);
     if (in.is_open()) {
@@ -184,11 +192,13 @@ FitnessResult FitnessEvaluator::compute_fitness_from_csv(const std::string &mode
             last_gen_mean_emd = last["mean_emd"].get<double>();
         if (last.contains("mean_ks"))
             last_gen_mean_ks = last["mean_ks"].get<double>();
+        if (last.contains("mean_stat"))
+            last_gen_mean_stat = last["mean_stat"].get<double>();
     }
 
     return compute_fitness(model["burst_rate"], model["mean_duration"], model["mean_amplitude"],
                            real["burst_rate"], real["mean_duration"], real["mean_amplitude"],
-                           last_gen_mean_emd, last_gen_mean_ks);
+                           last_gen_mean_emd, last_gen_mean_ks, last_gen_mean_stat);
 }
 
 double FitnessEvaluator::mean(const std::vector<double> &v) const {
@@ -223,4 +233,9 @@ double FitnessEvaluator::kurtosis(const std::vector<double> &v) const {
     for (double x : v)
         accum += std::pow((x - m) / s, 4);
     return accum / v.size(); // Excess kurtosis
+}
+
+double FitnessEvaluator::stat_diff(const std::vector<double> &m,
+                                   const std::vector<double> &r) const {
+    return std::abs(mean(m) - mean(r)) + std::abs(stddev(m) - stddev(r));
 }

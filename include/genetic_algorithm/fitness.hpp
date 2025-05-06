@@ -8,12 +8,13 @@ struct FitnessResult {
     double total;
     double emd_fitness;
     double ks_fitness;
+    double stat_fitness;
 };
 
 class FitnessEvaluator {
 
   public:
-    explicit FitnessEvaluator(double stats_weight);
+    explicit FitnessEvaluator();
     // Compute fitness from raw vectors
 
     // Convenience method: compute fitness directly from two CSV files
@@ -36,15 +37,15 @@ class FitnessEvaluator {
 
     double kurtosis(const std::vector<double> &v) const;
 
+    double stat_diff(const std::vector<double> &m, const std::vector<double> &r) const;
+
     double interpolate_quantile(const std::vector<double> &data, double q) const;
 
-    FitnessResult compute_fitness(const std::vector<double> &model_rate,
-                                  const std::vector<double> &model_duration,
-                                  const std::vector<double> &model_amplitude,
-                                  const std::vector<double> &real_rate,
-                                  const std::vector<double> &real_duration,
-                                  const std::vector<double> &real_amplitude,
-                                  double last_gen_mean_emd, double last_gen_mean_ks) const;
+    FitnessResult compute_fitness(
+        const std::vector<double> &model_rate, const std::vector<double> &model_duration,
+        const std::vector<double> &model_amplitude, const std::vector<double> &real_rate,
+        const std::vector<double> &real_duration, const std::vector<double> &real_amplitude,
+        double last_gen_mean_emd, double last_gen_mean_ks, double last_gen_mean_stat) const;
 
     // CSV utilities
     std::unordered_map<std::string, std::vector<double>>

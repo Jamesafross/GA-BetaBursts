@@ -1,6 +1,7 @@
 #ifndef JSON_UTILS_HPP
 #define JSON_UTILS_HPP
 
+#include "genetic_algorithm/fitness.hpp"
 #include "json.hpp"
 #include "neural_mass_model/parameters.h"
 #include <string>
@@ -18,7 +19,7 @@ void save_parameters_to_json(const ModelParameters &p, const std::string &output
                              const std::string &filename);
 
 // Save parameters and fitness to JSON
-void save_parameters_with_fitness(const ModelParameters &p, double fitness, double emd, double ks,
+void save_parameters_with_fitness(const ModelParameters &p, FitnessResult result,
                                   const std::string &output_dir, const std::string &filename);
 
 #endif // JSON_UTILS_HPP

@@ -51,7 +51,7 @@ const std::string meg_output_dir = OUTPUT_PATH + "/meg";
 int main() {
     GAParameters ga_p;
     ThresholdParameters th_params;
-    FitnessEvaluator evaluator(0.1);
+    FitnessEvaluator evaluator;
     auto bounds = ParameterBounds();
 
     double elite_frac = 0.05;
@@ -128,8 +128,6 @@ int main() {
                 summary_path);
 
             double fitness = result.total;
-            double emd = result.emd_fitness;
-            double ks = result.ks_fitness;
 
             save_parameters_with_fitness(population[i], result, params_dir, json_file);
 
