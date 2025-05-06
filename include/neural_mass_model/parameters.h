@@ -64,10 +64,10 @@ struct ParameterBounds {
     double alphaii_min = 0.01, alphaii_max = 1.0;
 
     // === Synaptic couplings ===
-    double kappa_see_min = 0.01, kappa_see_max = 15.0;
-    double kappa_sei_min = 0.01, kappa_sei_max = 15.0;
-    double kappa_sie_min = 0.01, kappa_sie_max = 15.0;
-    double kappa_sii_min = 0.01, kappa_sii_max = 15.0;
+    double kappa_see_min = 0.01, kappa_see_max = 25.0;
+    double kappa_sei_min = 0.01, kappa_sei_max = 25.0;
+    double kappa_sie_min = 0.01, kappa_sie_max = 25.0;
+    double kappa_sii_min = 0.01, kappa_sii_max = 25.0;
 
     // === Gap junction couplings ===
     double kappa_gapee_min = 0.0, kappa_gapee_max = 0.2;
@@ -91,8 +91,8 @@ struct ParameterBounds {
     double deltai_min = 0.05, deltai_max = 0.6;
 
     // === Noise amplitudes ===
-    double sigma_se_min = 0.005, sigma_se_max = 0.1;
-    double sigma_si_min = 0.005, sigma_si_max = 0.1;
+    double sigma_se_min = 0.001, sigma_se_max = 0.1;
+    double sigma_si_min = 0.001, sigma_si_max = 0.1;
 
     // === Mean inputs ===
     double eta0e_min = 0.0, eta0e_max = 5.0;
@@ -103,7 +103,7 @@ struct SolverParameters {
     double dt = 0.01;                 // time step in milliseconds (ms)
     double t_seconds = 100.0;         // total simulation time in seconds
     double save_start_seconds = 20.0; // start saving after this many seconds
-    size_t n_trial = 100;
+    size_t n_trial = 200;
 
     double fs = 200.0; // desired saving frequency in Hz
 

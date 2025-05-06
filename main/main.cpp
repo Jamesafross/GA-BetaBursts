@@ -1,19 +1,20 @@
 #include "genetic_algorithm/fitness.hpp"
 #include "genetic_algorithm/ga_parameters.h"
 #include "genetic_algorithm/generation_logger.hpp"
-#include "genetic_algorithm/genetic_operators.hpp"
-#include "genetic_algorithm/selection.hpp"
+#include "genetic_algorithm/genetic_algorithm.hpp"
 #include "meg/generate_real_stats.hpp"
 #include "neural_mass_model/generate_model_stats.hpp"
 #include "neural_mass_model/json_utils.hpp"
 #include "neural_mass_model/meanfield.h"
 #include "neural_mass_model/parameter_utils.hpp"
+#include "neural_mass_model/parameters.h"
 #include "paths.hpp"
 #include "thresholding/threshold_structs.h"
 #include "utils/python_plot.hpp"
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <json.hpp>
 #include <random>
 
 void ensure_output_directories(const std::string &base_dir, const std::string &stats_dir,
@@ -36,14 +37,29 @@ void cleanup_simulated_data(const std::string &simulated_dir) {
     }
 }
 
+void clear_summary_file(const std::string &path) {
+    std::ofstream out(path, std::ios::trunc); // truncate clears the file
+    if (out.is_open()) {
+        nlohmann::json empty_array = nlohmann::json::array();
+        out << empty_array.dump(4); // pretty print
+        out.close();
+    }
+}
+
 const std::string meg_output_dir = OUTPUT_PATH + "/meg";
 
 int main() {
     GAParameters ga_p;
     ThresholdParameters th_params;
     FitnessEvaluator evaluator(0.1);
-    Selection selection;
-    GeneticOperators genetic_operators(ga_p.mutation_rate, 0.2, ga_p.num_generations);
+    auto bounds = ParameterBounds();
+
+    double elite_frac = 0.05;
+    double random_frac = 0.10;
+    size_t tournament_size = 3;
+
+    GeneticAlgorithm ga(bounds, ga_p.population_size, ga_p.mutation_rate, 0.1,
+                        ga_p.num_generations);
 
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -78,7 +94,6 @@ int main() {
     GenerationLogger logger(summary_path);
 
     // === Step 2: Initial random population ===
-    ParameterBounds bounds;
     auto population = generate_parameter_population(ga_p.population_size, bounds, rng);
 
     // === Step 3: Evolve over generations ===
@@ -108,10 +123,15 @@ int main() {
             th_params.original_fs = 200.0;
             generate_model_stats(sim_dir, stats_dir, sim_csv, stats_csv, th_params);
 
-            double fitness = evaluator.compute_fitness_from_csv(
-                stats_dir + "/" + stats_csv, OUTPUT_PATH + "/meg/meg_burst_stats_merged.csv");
+            auto result = evaluator.compute_fitness_from_csv(
+                stats_dir + "/" + stats_csv, OUTPUT_PATH + "/meg/meg_burst_stats_merged.csv",
+                summary_path);
 
-            save_parameters_with_fitness(population[i], fitness, params_dir, json_file);
+            double fitness = result.total;
+            double emd = result.emd_fitness;
+            double ks = result.ks_fitness;
+
+            save_parameters_with_fitness(population[i], result, params_dir, json_file);
 
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end - start;
@@ -120,7 +140,6 @@ int main() {
                       << ") in " << elapsed.count() << "s\n";
         }
 
-        // or whatever generation index you're on
         logger.append_summary_from_directory(params_dir, gen);
 
         // plot violins
@@ -130,16 +149,11 @@ int main() {
         // --- Clean up large simulated files ---
         cleanup_simulated_data(sim_dir);
 
-        // --- Selection & Next Gen ---
-        auto top_n = selection.select_top_n_from_directory(
-            params_dir, std::max<size_t>(1, ga_p.elite_fraction * ga_p.population_size));
-        selection.save_selected_individuals(top_n, selected_dir);
+        std::vector<Individual> population = ga.generate_next_generation_from_directory(
+            params_dir, elite_frac, random_frac, tournament_size, gen);
 
-        // --- Generate next population ---
-        size_t n_random = std::max<size_t>(1, static_cast<size_t>(0.2 * ga_p.population_size));
-
-        population = genetic_operators.generate_next_population(top_n, ga_p.population_size,
-                                                                n_random, rng, bounds, gen);
+        // std::string output_dir = base_dir + "/gen" + std::to_string(gen + 1);
+        // ga.save_generation(next_gen, output_dir);
     }
 
     return 0;

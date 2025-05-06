@@ -1,6 +1,5 @@
 #pragma once
 
-#include "selection.hpp"
 #include <json.hpp>
 #include <string>
 

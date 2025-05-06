@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iostream>
+#include <json.hpp>
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
@@ -9,12 +11,15 @@
 FitnessEvaluator::FitnessEvaluator(double stats_weight) : stats_weight(stats_weight) {}
 
 // === Main fitness method ===
-double FitnessEvaluator::compute_fitness(const std::vector<double> &model_rate,
-                                         const std::vector<double> &model_duration,
-                                         const std::vector<double> &model_amplitude,
-                                         const std::vector<double> &real_rate,
-                                         const std::vector<double> &real_duration,
-                                         const std::vector<double> &real_amplitude) const {
+FitnessResult FitnessEvaluator::compute_fitness(
+    const std::vector<double> &model_rate, const std::vector<double> &model_duration,
+    const std::vector<double> &model_amplitude, const std::vector<double> &real_rate,
+    const std::vector<double> &real_duration, const std::vector<double> &real_amplitude,
+    double last_gen_mean_emd, double last_gen_mean_ks) const {
+
+    constexpr double eps = 1e-8;
+
+    // Scaling based on real data magnitude
     double max_rate = *std::max_element(real_rate.begin(), real_rate.end());
     double max_duration = *std::max_element(real_duration.begin(), real_duration.end());
     double max_amplitude = *std::max_element(real_amplitude.begin(), real_amplitude.end());
@@ -23,21 +28,28 @@ double FitnessEvaluator::compute_fitness(const std::vector<double> &model_rate,
     double weight_duration = (max_duration > 0.0) ? 1.0 / max_duration : 1.0;
     double weight_amplitude = (max_amplitude > 0.0) ? 1.0 / max_amplitude : 1.0;
 
-    auto stat_diff = [&](const std::vector<double> &m, const std::vector<double> &r) {
-        return std::abs(mean(m) - mean(r)) + std::abs(stddev(m) - stddev(r)) +
-               std::abs(skewness(m) - skewness(r)) + std::abs(kurtosis(m) - kurtosis(r));
-    };
+    // EMD
+    double emd_rate = weight_rate * wasserstein_distance(model_rate, real_rate);
+    double emd_duration = weight_duration * wasserstein_distance(model_duration, real_duration);
+    double emd_amplitude = weight_amplitude * wasserstein_distance(model_amplitude, real_amplitude);
 
-    double stat_rate = weight_rate * stat_diff(model_rate, real_rate);
-    double stat_duration = weight_duration * stat_diff(model_duration, real_duration);
-    double stat_amplitude = weight_amplitude * stat_diff(model_amplitude, real_amplitude);
+    double total_emd = emd_rate + emd_duration + emd_amplitude;
 
-    auto emd_rate = weight_rate * wasserstein_distance(model_rate, real_rate);
-    auto emd_duration = weight_duration * wasserstein_distance(model_duration, real_duration);
-    auto emd_amplitude = weight_amplitude * wasserstein_distance(model_amplitude, real_amplitude);
+    // KS
+    double ks_rate = ks_distance(model_rate, real_rate);
+    double ks_duration = ks_distance(model_duration, real_duration);
+    double ks_amplitude = ks_distance(model_amplitude, real_amplitude);
 
-    return emd_rate + emd_duration + emd_amplitude +
-           stats_weight * (stat_rate + stat_duration + stat_amplitude);
+    double total_ks = ks_rate + ks_duration + ks_amplitude;
+
+    // Dynamically weight each part relative to previous generation mean
+    double norm_emd = total_emd / (last_gen_mean_emd + eps);
+    double norm_ks = total_ks / (last_gen_mean_ks + eps);
+
+    // Final fitness: adaptively normalized components
+    double total_fitness = norm_emd + norm_ks;
+
+    return FitnessResult{.total = total_fitness, .emd_fitness = total_emd, .ks_fitness = total_ks};
 }
 
 // === Distance calculation ===
@@ -48,38 +60,65 @@ double FitnessEvaluator::wasserstein_distance(std::vector<double> x, std::vector
     std::sort(x.begin(), x.end());
     std::sort(y.begin(), y.end());
 
-    size_t n = x.size(), m = y.size();
-    if (n == m) {
-        double dist = 0.0;
-        for (size_t i = 0; i < n; ++i) {
-            dist += std::abs(x[i] - y[i]);
-        }
-        return dist / n;
+    // Resample to the same size using ECDF quantiles
+    size_t n = std::max(x.size(), y.size());
+    std::vector<double> x_interp(n), y_interp(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        double q = static_cast<double>(i) / (n - 1);
+        x_interp[i] = interpolate_quantile(x, q);
+        y_interp[i] = interpolate_quantile(y, q);
     }
+
+    double dist = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        dist += std::abs(x_interp[i] - y_interp[i]);
+    }
+
+    return dist / n;
+}
+
+double FitnessEvaluator::ks_distance(std::vector<double> x, std::vector<double> y) const {
+    if (x.empty() || y.empty())
+        throw std::invalid_argument("Input distributions must not be empty.");
+
+    std::sort(x.begin(), x.end());
+    std::sort(y.begin(), y.end());
 
     size_t i = 0, j = 0;
-    double fx = 0.0, fy = 0.0;
-    double last_x = 0.0, last_y = 0.0;
-    double step_x = 1.0 / n, step_y = 1.0 / m, area = 0.0;
+    double cdf_x = 0.0, cdf_y = 0.0;
+    double step_x = 1.0 / x.size();
+    double step_y = 1.0 / y.size();
+    double max_diff = 0.0;
 
-    while (i < n || j < m) {
-        double next_x = (i < n) ? x[i] : x.back();
-        double next_y = (j < m) ? y[j] : y.back();
-
-        if ((i < n && (j == m || next_x <= next_y))) {
-            fx += step_x;
-            last_x = next_x;
+    while (i < x.size() && j < y.size()) {
+        if (x[i] < y[j]) {
+            cdf_x += step_x;
             ++i;
-        } else {
-            fy += step_y;
-            last_y = next_y;
+        } else if (y[j] < x[i]) {
+            cdf_y += step_y;
+            ++j;
+        } else { // x[i] == y[j]
+            cdf_x += step_x;
+            cdf_y += step_y;
+            ++i;
             ++j;
         }
-
-        area += std::abs(fx - fy) * std::abs(last_x - last_y);
+        max_diff = std::max(max_diff, std::abs(cdf_x - cdf_y));
     }
 
-    return area;
+    return max_diff;
+}
+
+double FitnessEvaluator::interpolate_quantile(const std::vector<double> &data, double q) const {
+    if (data.empty())
+        return 0.0;
+    double pos = q * (data.size() - 1);
+    size_t idx = static_cast<size_t>(pos);
+    double frac = pos - idx;
+    if (idx + 1 < data.size())
+        return data[idx] * (1.0 - frac) + data[idx + 1] * frac;
+    return data.back();
 }
 
 // === CSV Column Loader ===
@@ -119,13 +158,37 @@ FitnessEvaluator::load_columns_by_name(const std::string &filename) const {
 }
 
 // === Wrapper to compute fitness from two files ===
-double FitnessEvaluator::compute_fitness_from_csv(const std::string &model_file,
-                                                  const std::string &real_file) const {
+FitnessResult FitnessEvaluator::compute_fitness_from_csv(const std::string &model_file,
+                                                         const std::string &real_file,
+                                                         const std::string &summary_json) const {
     auto model = load_columns_by_name(model_file);
     auto real = load_columns_by_name(real_file);
+    double last_gen_mean_emd = 1.0; // default fallback
+    double last_gen_mean_ks = 1.0;  // default fallback
+    nlohmann::json summary;
+    std::ifstream in(summary_json);
+    if (in.is_open()) {
+        try {
+            in >> summary;
+        } catch (const std::exception &e) {
+            std::cerr << "Error parsing summary.json: " << e.what() << "\n";
+        }
+        in.close();
+    } else {
+        std::cerr << "Warning: summary.json not found. Using default EMD/KS weights.\n";
+    }
+
+    if (summary.is_array() && !summary.empty()) {
+        const auto &last = summary.back();
+        if (last.contains("mean_emd"))
+            last_gen_mean_emd = last["mean_emd"].get<double>();
+        if (last.contains("mean_ks"))
+            last_gen_mean_ks = last["mean_ks"].get<double>();
+    }
 
     return compute_fitness(model["burst_rate"], model["mean_duration"], model["mean_amplitude"],
-                           real["burst_rate"], real["mean_duration"], real["mean_amplitude"]);
+                           real["burst_rate"], real["mean_duration"], real["mean_amplitude"],
+                           last_gen_mean_emd, last_gen_mean_ks);
 }
 
 double FitnessEvaluator::mean(const std::vector<double> &v) const {

@@ -1,20 +1,20 @@
-#include "neural_mass_model/meanfield.h"
-#include <iostream>
-#include <fstream>
-#include <cmath>
-#include <atomic>
-#include <mutex>
-#include <filesystem>
 #include "neural_mass_model/euler_maruyama.hpp"
+#include "neural_mass_model/meanfield.h"
+#include <atomic>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <mutex>
 
 // === Save multiple trials to CSV ===
-void save_matrix(const std::vector<std::vector<double>>& data, const std::string& filename) {
+void save_matrix(const std::vector<std::vector<double>> &data, const std::string &filename) {
     std::ofstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error opening file for writing: " << filename << std::endl;
         return;
     }
-    for (const auto& row : data) {
+    for (const auto &row : data) {
         for (size_t i = 0; i < row.size(); ++i) {
             file << row[i];
             if (i != row.size() - 1)
@@ -27,9 +27,10 @@ void save_matrix(const std::vector<std::vector<double>>& data, const std::string
 }
 
 // === Mean-field model implementation ===
-meanfield::meanfield(const ModelParameters& p_) : p(p_) {}
+meanfield::meanfield(const ModelParameters &p_) : p(p_) {}
 
-void meanfield::operator()(const std::vector<double>& state, std::vector<double>& dxdt, double /*t*/) const {
+void meanfield::operator()(const std::vector<double> &state, std::vector<double> &dxdt,
+                           double /*t*/) const {
     const double ve = state[0], vi = state[1];
     const double re = state[2], ri = state[3];
     const double gee = state[4], phiee = state[5];
@@ -68,24 +69,19 @@ void meanfield::operator()(const std::vector<double>& state, std::vector<double>
     dxdt[13] = -si / p.tauxi;
 }
 
-void meanfield::apply_noise(std::vector<double>& state, double dt, std::mt19937& rng) const {
+void meanfield::apply_noise(std::vector<double> &state, double dt, std::mt19937 &rng) const {
     std::normal_distribution<double> normal(0.0, 1.0);
     state[12] += p.sigma_se * normal(rng) * std::sqrt(dt);
     state[13] += p.sigma_si * normal(rng) * std::sqrt(dt);
 }
 
-
-void run_neural_mass(const ModelParameters& p,
-                     const SolverParameters& opts,
-                     const std::string& output_dir,
-                     const std::string& filename)
-{
+void run_neural_mass(const ModelParameters &p, const SolverParameters &opts,
+                     const std::string &output_dir, const std::string &filename) {
     const size_t num_steps = opts.t_end();
     const size_t start_step = opts.save_start_step();
     const size_t save_interval = opts.save_every();
-    const size_t steps_to_save = (num_steps > start_step)
-        ? (num_steps - start_step + save_interval - 1) / save_interval
-        : 0;
+    const size_t steps_to_save =
+        (num_steps > start_step) ? (num_steps - start_step + save_interval - 1) / save_interval : 0;
 
     std::vector<std::vector<double>> all_i_net(opts.n_trial, std::vector<double>(steps_to_save));
     std::atomic<size_t> completed_trials(0);
@@ -94,10 +90,11 @@ void run_neural_mass(const ModelParameters& p,
     auto print_progress = [&](size_t done, size_t total) {
         std::lock_guard<std::mutex> lock(cout_mutex);
         double percent = 100.0 * done / total;
-        std::cout << "\rProgress: " << done << "/" << total << " (" << percent << "%)" << std::flush;
+        std::cout << "\rProgress : " << done << "/" << total << " (" << percent << "%)"
+                  << std::flush;
     };
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (size_t trial = 0; trial < opts.n_trial; ++trial) {
         std::vector<double> state(14, 1.0);
         meanfield model(p);
@@ -129,7 +126,7 @@ void run_neural_mass(const ModelParameters& p,
     // Create directory if it doesn't exist (C++17)
     std::filesystem::create_directories(output_dir);
 
-    std::string full_path = output_dir + "/" + filename; 
+    std::string full_path = output_dir + "/" + filename;
     save_matrix(all_i_net, full_path);
     std::cout << "Saved simulation to " << full_path << "\n";
     std::cout << num_steps << std::endl;
