@@ -44,7 +44,7 @@ output/*.json
 *.swp
 
 # VSCode config (if applicable)
-.vscode/
+#.vscode/
 
 # MacOS / Linux cruft
 .DS_Store

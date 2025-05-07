@@ -1,0 +1,9 @@
+{
+  "clangd.path": "/usr/bin/clangd",
+  "C_Cpp.intelliSenseEngine": "Disabled",
+  "editor.formatOnSave": true,
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
+  "clang-format.style": "file"
+}
