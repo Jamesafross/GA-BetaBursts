@@ -52,12 +52,15 @@ FitnessResult FitnessEvaluator::compute_fitness(
     double norm_ks = total_ks / (last_gen_mean_ks + eps);
     double norm_stat = total_stat / (last_gen_mean_stat + eps);
 
+    double amplified_ks = std::sqrt(norm_ks);
+    double amplified_emd = norm_emd * norm_emd;
+
     // Final fitness: adaptively normalized components
-    double total_fitness = norm_emd + norm_ks + norm_stat;
+    double total_fitness = amplified_emd + amplified_ks + norm_stat;
 
     return FitnessResult{.total = total_fitness,
-                         .emd_fitness = total_emd,
-                         .ks_fitness = total_ks,
+                         .emd_fitness = amplified_emd,
+                         .ks_fitness = amplified_ks,
                          .stat_fitness = total_stat};
 }
 
