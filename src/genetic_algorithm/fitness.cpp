@@ -10,7 +10,6 @@
 
 FitnessEvaluator::FitnessEvaluator() = default;
 
-// === Main fitness method ===
 FitnessResult FitnessEvaluator::compute_fitness(
     const std::vector<double> &model_rate, const std::vector<double> &model_duration,
     const std::vector<double> &model_amplitude, const std::vector<double> &real_rate,
@@ -18,50 +17,45 @@ FitnessResult FitnessEvaluator::compute_fitness(
     double last_gen_mean_emd, double last_gen_mean_ks, double last_gen_mean_stat) const {
 
     constexpr double eps = 1e-8;
+    constexpr double min_ref = 1e-3; // Lower bound to avoid dividing by near-zero
 
-    // Scaling based on real data magnitude
-    double max_rate = *std::max_element(real_rate.begin(), real_rate.end());
-    double max_duration = *std::max_element(real_duration.begin(), real_duration.end());
-    double max_amplitude = *std::max_element(real_amplitude.begin(), real_amplitude.end());
+    // --- Scaling factors ---
+    auto max_safe = [](const std::vector<double> &v) {
+        return std::max(*std::max_element(v.begin(), v.end()), 1.0);
+    };
 
-    double weight_rate = (max_rate > 0.0) ? 1.0 / max_rate : 1.0;
-    double weight_duration = (max_duration > 0.0) ? 1.0 / max_duration : 1.0;
-    double weight_amplitude = (max_amplitude > 0.0) ? 1.0 / max_amplitude : 1.0;
+    double weight_rate = 1.0 / max_safe(real_rate);
+    double weight_duration = 1.0 / max_safe(real_duration);
+    double weight_amplitude = 1.0 / max_safe(real_amplitude);
 
-    // EMD
-    double emd_rate = weight_rate * wasserstein_distance(model_rate, real_rate);
-    double emd_duration = weight_duration * wasserstein_distance(model_duration, real_duration);
-    double emd_amplitude = weight_amplitude * wasserstein_distance(model_amplitude, real_amplitude);
+    // --- Compute distances ---
+    double emd_total = weight_rate * wasserstein_distance(model_rate, real_rate) +
+                       weight_duration * wasserstein_distance(model_duration, real_duration) +
+                       weight_amplitude * wasserstein_distance(model_amplitude, real_amplitude);
 
-    double total_emd = emd_rate + emd_duration + emd_amplitude;
+    double stat_total = stat_diff(model_rate, real_rate) +
+                        stat_diff(model_duration, real_duration) +
+                        stat_diff(model_amplitude, real_amplitude);
 
-    double stat_rate = stat_diff(model_rate, real_rate);
-    double stat_duration = stat_diff(model_duration, real_duration);
-    double stat_amplitude = stat_diff(model_amplitude, real_amplitude);
-    double total_stat = stat_rate + stat_duration + stat_amplitude;
+    double ks_total = ks_distance(model_rate, real_rate) +
+                      ks_distance(model_duration, real_duration) +
+                      ks_distance(model_amplitude, real_amplitude);
 
-    // KS
-    double ks_rate = ks_distance(model_rate, real_rate);
-    double ks_duration = ks_distance(model_duration, real_duration);
-    double ks_amplitude = ks_distance(model_amplitude, real_amplitude);
+    // --- Normalize relative to previous generation ---
+    double norm_emd = emd_total / std::max(last_gen_mean_emd, min_ref);
+    double norm_ks = ks_total / std::max(last_gen_mean_ks, min_ref);
+    double norm_stat = stat_total / std::max(last_gen_mean_stat, min_ref);
 
-    double total_ks = ks_rate + ks_duration + ks_amplitude;
+    // --- Optional amplification ---
+    double penalized_emd = std::pow(norm_emd, 1.5); // penalize large mismatches more
+    double penalized_ks = std::pow(norm_ks, 1.2);   // softer amplification
 
-    // Dynamically weight each part relative to previous generation mean
-    double norm_emd = total_emd / (last_gen_mean_emd + eps);
-    double norm_ks = total_ks / (last_gen_mean_ks + eps);
-    double norm_stat = total_stat / (last_gen_mean_stat + eps);
-
-    double amplified_ks = std::sqrt(norm_ks);
-    double amplified_emd = norm_emd * norm_emd;
-
-    // Final fitness: adaptively normalized components
-    double total_fitness = amplified_emd + amplified_ks + norm_stat;
+    double total_fitness = penalized_emd + penalized_ks + norm_stat;
 
     return FitnessResult{.total = total_fitness,
-                         .emd_fitness = amplified_emd,
-                         .ks_fitness = amplified_ks,
-                         .stat_fitness = total_stat};
+                         .emd_fitness = emd_total,
+                         .ks_fitness = ks_total,
+                         .stat_fitness = stat_total};
 }
 
 // === Distance calculation ===
