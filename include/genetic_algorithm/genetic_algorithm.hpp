@@ -39,7 +39,7 @@ class GeneticAlgorithm {
     double crossover_alpha;
     double running_best_fitness = std::numeric_limits<double>::infinity();
     bool stagnation_flag = 0;
-    double stagnation_threshold = 0.1;
+    double stagnation_threshold = 0.02;
 
     // Evolution steps
     std::vector<Individual> load_generation(const std::string &dir) const;
