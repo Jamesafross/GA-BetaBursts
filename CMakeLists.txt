@@ -16,18 +16,9 @@ pkg_check_modules(FFTW REQUIRED IMPORTED_TARGET fftw3)
 # OpenMP
 find_package(OpenMP REQUIRED)
 
-# CMA-ES
-find_library(CMAES_LIBRARY NAMES cmaes PATHS /usr/local/lib REQUIRED)
-
 # NLopt
 find_path(NLOPT_INCLUDE_DIR nlopt.hpp PATHS /usr/include /usr/local/include)
 find_library(NLOPT_LIBRARY nlopt PATHS /usr/lib /usr/local/lib)
-
-if(NLOPT_INCLUDE_DIR AND NLOPT_LIBRARY)
-    message(STATUS "Found NLopt: ${NLOPT_LIBRARY}")
-else()
-    message(FATAL_ERROR "NLopt not found")
-endif()
 
 # === Global Include Paths ===
 set(PROJECT_INCLUDES
@@ -35,7 +26,6 @@ set(PROJECT_INCLUDES
     ${PROJECT_SOURCE_DIR}/external
     ${PROJECT_SOURCE_DIR}/external/iir1
     /usr/include/eigen3                           # Eigen headers (header-only)
-    ${NLOPT_INCLUDE_DIR}
 )
 
 # === Global Definitions ===
@@ -62,8 +52,6 @@ target_link_libraries(ga_run PRIVATE
     PkgConfig::FFTW
     OpenMP::OpenMP_CXX
     ${PROJECT_SOURCE_DIR}/external/iir1/libiir.so
-    ${CMAES_LIBRARY}
-    ${NLOPT_LIBRARY}
 )
 
 # === Executable: meg_burst_stats ===
@@ -81,6 +69,4 @@ target_link_libraries(meg_burst_stats PRIVATE
     PkgConfig::FFTW
     OpenMP::OpenMP_CXX
     ${PROJECT_SOURCE_DIR}/external/iir1/libiir.so
-    ${CMAES_LIBRARY}
-    ${NLOPT_LIBRARY}
 )
