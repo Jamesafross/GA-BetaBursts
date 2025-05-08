@@ -254,10 +254,10 @@ std::vector<Individual> GeneticAlgorithm::generate_next_generation_from_director
 
     size_t n_elite = static_cast<size_t>(elite_frac * total_size);
     size_t n_random = static_cast<size_t>(random_frac * total_size);
-    size_t n_variants = total_size - n_elite - n_random;
+    size_t n_variants = total_size - n_elite;
 
     auto elites = select_top_n(population, n_elite);
-    auto parents = tournament_selection(population, n_variants, tournament_size);
+    auto parents = tournament_selection(population, n_variants - n_random, tournament_size);
 
     std::mt19937 rng(std::random_device{}());
     auto children = generate_variants(parents, n_variants, n_random, rng, generation);
@@ -327,13 +327,13 @@ GeneticAlgorithm::generate_next_generation(std::vector<Individual> population, d
 
     size_t n_elite = static_cast<size_t>(elite_frac * total_size);
     size_t n_random = static_cast<size_t>(random_frac * total_size);
-    size_t n_variants = total_size - n_elite - n_random;
+    size_t n_variants = total_size - n_elite;
     auto best = best_phenotype(population);
 
     update_adaptive_parameters(generation, best);
 
     auto elites = select_top_n(population, n_elite);
-    auto parents = rank_selection(population, n_variants);
+    auto parents = rank_selection(population, n_variants - n_random);
 
     std::mt19937 rng(std::random_device{}());
     auto children = generate_variants(parents, n_variants, n_random, rng, generation);
