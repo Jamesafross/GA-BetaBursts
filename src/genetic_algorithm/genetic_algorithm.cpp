@@ -208,8 +208,10 @@ GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size
                                     size_t n_random, std::mt19937 &rng, size_t generation) const {
     std::vector<ModelParameters> children;
 
+    size_t n_crossover = n_offspring - n_random;
     std::uniform_int_distribution<size_t> dis(0, parents.size() - 1);
-    while (children.size() < n_offspring - 1) {
+
+    while (children.size() + 1 < n_crossover) {
         const auto &p1 = parents[dis(rng)].parameters;
         const auto &p2 = parents[dis(rng)].parameters;
 
@@ -219,20 +221,22 @@ GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size
         clamp(c1);
         clamp(c2);
         children.push_back(c1);
-        if (children.size() < n_offspring)
-            children.push_back(c2);
+        children.push_back(c2);
     }
 
-    if (children.size() < n_offspring) {
-        auto [c, _] = crossover(parents[0].parameters, parents[1].parameters, rng, generation);
-        mutate(c, rng, current_mutation_rate, current_mutation_strength);
-        clamp(c);
-        children.push_back(c);
+    if (children.size() < n_crossover) {
+        const auto &p1 = parents[dis(rng)].parameters;
+        const auto &p2 = parents[dis(rng)].parameters;
+        auto [c1, _] = crossover(p1, p2, rng, generation);
+        mutate(c1, rng, current_mutation_rate, current_mutation_strength);
+        clamp(c1);
+        children.push_back(c1);
     }
 
-    // Add random individuals
-    for (size_t i = 0; i < n_random; ++i)
+    // Add exactly n_random randoms
+    for (size_t i = 0; i < n_random; ++i) {
         children.push_back(sample_random_parameters(bounds, rng));
+    }
 
     return children;
 }
