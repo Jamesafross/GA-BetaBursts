@@ -115,6 +115,7 @@ int main() {
 
         // --- Run simulations and evaluate ---
         for (size_t i = 0; i < ga_p.population_size; ++i) {
+            std::cout << "\n=== Generation " << gen << " ===\n";
 
             std::string base = "phenotype_" + std::to_string(i);
             std::string sim_csv = base + "_simulated.csv";
