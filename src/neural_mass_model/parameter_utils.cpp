@@ -72,8 +72,13 @@ std::vector<Individual> generate_parameter_population(size_t n, const ParameterB
                                                       std::mt19937 &rng) {
     std::vector<Individual> population;
     population.reserve(n);
+
     for (size_t i = 0; i < n; ++i) {
-        population[i].parameters = sample_random_parameters(bounds, rng);
+        Individual ind;
+        ind.parameters = sample_random_parameters(bounds, rng);
+        ind.fitness = -1;
+        ind.source_path = "";
+        population.emplace_back(std::move(ind));
     }
     return population;
 }

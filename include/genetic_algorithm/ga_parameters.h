@@ -11,6 +11,7 @@ struct GAParameters {
     double mutation_strength_init = 1.0;
     double crossover_rate = 0.4; // Probability of crossover between parents
     double elite_fraction = 0.1; // Fraction of top performers to keep unaltered
+    double crossover_alpha_init = 0.8;
 
     unsigned int seed = 42; // RNG seed for reproducibility
 };

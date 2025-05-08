@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef GENERATION_LOGGER_H
 #define GENERATION_LOGGER_H
 

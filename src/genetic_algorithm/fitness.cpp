@@ -16,7 +16,7 @@ FitnessResult FitnessEvaluator::compute_fitness(
     const std::vector<double> &real_duration, const std::vector<double> &real_amplitude,
     double last_gen_mean_emd, double last_gen_mean_ks, double last_gen_mean_stat) const {
 
-    constexpr double eps = 1e-8;
+    // constexpr double eps = 1e-8;
     constexpr double min_ref = 1e-3; // Lower bound to avoid dividing by near-zero
 
     // --- Scaling factors ---

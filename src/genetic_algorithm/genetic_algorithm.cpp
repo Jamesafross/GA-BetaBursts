@@ -31,10 +31,10 @@
 // === Constructor ===
 GeneticAlgorithm::GeneticAlgorithm(ParameterBounds bounds, size_t total_size,
                                    double mutation_rate_init, double mutation_strength_init,
-                                   size_t max_generations)
+                                   double crossover_alpha_init, size_t max_generations)
     : bounds(bounds), total_size(total_size), mutation_rate_init(mutation_rate_init),
-      mutation_strength_init(mutation_strength_init), max_generations(max_generations) {}
-
+      mutation_strength_init(mutation_strength_init), crossover_alpha_init(crossover_alpha_init),
+      max_generations(max_generations) {}
 // === Load individuals from a directory ===
 std::vector<Individual> GeneticAlgorithm::load_generation(const std::string &dir) const {
     std::vector<Individual> generation;
@@ -90,6 +90,13 @@ std::vector<Individual> GeneticAlgorithm::select_top_n(const std::vector<Individ
     return {sorted.begin(), sorted.begin() + n};
 }
 
+Individual GeneticAlgorithm::best_phenotype(const std::vector<Individual> &population) const {
+    std::vector<Individual> sorted = population;
+    std::sort(sorted.begin(), sorted.end(),
+              [](const Individual &a, const Individual &b) { return a.fitness < b.fitness; });
+    return *sorted.begin(); // Dereference to get the actual object
+}
+
 // === Tournament selection ===
 std::vector<Individual>
 GeneticAlgorithm::tournament_selection(const std::vector<Individual> &population,
@@ -136,28 +143,25 @@ void GeneticAlgorithm::clamp(ModelParameters &p) const {
 // === Crossover ===
 std::pair<ModelParameters, ModelParameters>
 GeneticAlgorithm::crossover(const ModelParameters &parent1, const ModelParameters &parent2,
-                            std::mt19937 &rng, size_t generation) const {
-    ModelParameters child1 = parent1;
-    ModelParameters child2 = parent2;
+                            std::mt19937 &rng, size_t /*generation*/) const {
+    ModelParameters child1, child2;
+    const double alpha = 0.5;
 
-    // Adaptive linear crossover probability schedule
-    double start_p = 0.5;
-    double end_p = 0.1;
-    double t = static_cast<double>(generation) / max_generations;
-    double crossover_prob = start_p - t * (start_p - end_p);
-    crossover_prob = std::clamp(crossover_prob, end_p, start_p);
-
-    // Define macro to apply to each field
 #define CROSSOVER_FIELD(f)                                                                         \
-    if (std::bernoulli_distribution(crossover_prob)(rng))                                          \
-        std::swap(child1.f, child2.f);
+    {                                                                                              \
+        double min_val = std::min(parent1.f, parent2.f);                                           \
+        double max_val = std::max(parent1.f, parent2.f);                                           \
+        double range = max_val - min_val;                                                          \
+        std::uniform_real_distribution<> dist(min_val - alpha * range, max_val + alpha * range);   \
+        child1.f = dist(rng);                                                                      \
+        child2.f = dist(rng);                                                                      \
+    }
 
     FOR_EACH_PARAM(CROSSOVER_FIELD)
 #undef CROSSOVER_FIELD
 
     return {child1, child2};
 }
-
 // === Mutation ===
 void GeneticAlgorithm::mutate(ModelParameters &individual, std::mt19937 &rng, double mutation_rate,
                               double mutation_strength) const {
@@ -179,8 +183,6 @@ std::vector<ModelParameters>
 GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size_t n_offspring,
                                     size_t n_random, std::mt19937 &rng, size_t generation) const {
     std::vector<ModelParameters> children;
-    double mutation_strength = get_mutation_strength(generation);
-    double mutation_rate = get_mutation_rate(generation);
 
     std::uniform_int_distribution<size_t> dis(0, parents.size() - 1);
     while (children.size() < n_offspring - 1) {
@@ -188,8 +190,8 @@ GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size
         const auto &p2 = parents[dis(rng)].parameters;
 
         auto [c1, c2] = crossover(p1, p2, rng, generation);
-        mutate(c1, rng, mutation_rate, mutation_strength);
-        mutate(c2, rng, mutation_rate, mutation_strength);
+        mutate(c1, rng, current_mutation_rate, current_mutation_strength);
+        mutate(c2, rng, current_mutation_rate, current_mutation_strength);
         clamp(c1);
         clamp(c2);
         children.push_back(c1);
@@ -199,7 +201,7 @@ GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size
 
     if (children.size() < n_offspring) {
         auto [c, _] = crossover(parents[0].parameters, parents[1].parameters, rng, generation);
-        mutate(c, rng, mutation_rate, mutation_strength);
+        mutate(c, rng, current_mutation_rate, current_mutation_strength);
         clamp(c);
         children.push_back(c);
     }
@@ -241,10 +243,68 @@ std::vector<Individual> GeneticAlgorithm::generate_next_generation_from_director
     return new_gen;
 }
 
-double GeneticAlgorithm::get_mutation_rate(size_t generation) const {
-    return pow(0.95, static_cast<int>(generation) + 1) * mutation_rate_init;
-};
+void GeneticAlgorithm::update_adaptive_parameters(size_t generation) {
+    if (generation == 0) {
+        current_mutation_rate = mutation_rate_init;
+        current_mutation_strength = mutation_strength_init;
+        crossover_alpha = crossover_alpha_init; // start exploratory
+    } else {
+        if (stagnation_flag) {
+            current_mutation_rate *= 1.05;
+            current_mutation_strength *= 1.05;
+            crossover_alpha *= 1.05;
+        } else {
+            current_mutation_rate *= 0.95;
+            current_mutation_strength *= 0.95;
+            crossover_alpha *= 0.95;
+        }
 
-double GeneticAlgorithm::get_mutation_strength(size_t generation) const {
-    return pow(0.95, static_cast<int>(generation) + 1) * mutation_strength_init;
+        // Clamp alpha within a reasonable range
+        crossover_alpha = std::clamp(crossover_alpha, 0.1, 1.0);
+        current_mutation_rate = std::clamp(current_mutation_rate, 1e-4, 1.0);
+        current_mutation_strength = std::clamp(current_mutation_strength, 1e-4, 10.0);
+    }
+}
+
+void GeneticAlgorithm::stagnation_detect(const Individual &best_phenotype) {
+    if (best_phenotype.fitness >= running_best_fitness ||
+        running_best_fitness - best_phenotype.fitness < stagnation_threshold) {
+        stagnation_flag = 1;
+    } else {
+        stagnation_flag = 0;
+        running_best_fitness = best_phenotype.fitness;
+    }
+}
+
+std::vector<Individual>
+GeneticAlgorithm::generate_next_generation(std::vector<Individual> population, double elite_frac,
+                                           double random_frac, size_t tournament_size,
+                                           size_t generation) {
+
+    if (population.empty()) {
+        std::cerr << "[GA] Warning: empty population — generating random fallback\n";
+        std::mt19937 rng(std::random_device{}());
+        return generate_random_individuals(total_size, rng);
+    }
+
+    size_t n_elite = static_cast<size_t>(elite_frac * total_size);
+    size_t n_random = static_cast<size_t>(random_frac * total_size);
+    size_t n_variants = total_size - n_elite;
+    auto best = best_phenotype(population);
+    stagnation_detect(best);
+    update_adaptive_parameters(generation);
+
+    auto elites = select_top_n(population, n_elite);
+    auto parents = tournament_selection(population, n_variants - n_random, tournament_size);
+
+    std::mt19937 rng(std::random_device{}());
+    auto children = generate_variants(parents, n_variants, n_random, rng, generation);
+
+    std::vector<Individual> new_gen;
+    for (const auto &e : elites)
+        new_gen.push_back(e);
+    for (const auto &c : children)
+        new_gen.push_back({c, -1.0, ""});
+
+    return new_gen;
 };

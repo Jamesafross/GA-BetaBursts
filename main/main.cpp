@@ -17,6 +17,7 @@
 #include <iostream>
 #include <json.hpp>
 #include <random>
+#include <string>
 
 void ensure_output_directories(const std::string &base_dir, const std::string &stats_dir,
                                const std::string &simulated_dir,
@@ -61,7 +62,8 @@ int main() {
     size_t tournament_size = 3;
 
     GeneticAlgorithm ga(bounds, ga_p.population_size, ga_p.mutation_rate_init,
-                        ga_p.mutation_strength_init, ga_p.num_generations);
+                        ga_p.mutation_strength_init, ga_p.crossover_alpha_init,
+                        ga_p.num_generations);
 
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -132,6 +134,8 @@ int main() {
                 summary_path);
 
             double fitness = result.total;
+            population[i].fitness = fitness;
+            population[i].source_path = params_dir + "/" + base;
 
             save_parameters_with_fitness(population[i].parameters, result, params_dir, json_file);
 
@@ -151,8 +155,10 @@ int main() {
         // --- Clean up large simulated files ---
         cleanup_simulated_data(sim_dir);
 
-        std::vector<Individual> population = ga.generate_next_generation_from_directory(
-            params_dir, elite_frac, random_frac, tournament_size, gen);
+        std::vector<Individual> next_gen =
+            ga.generate_next_generation(population, elite_frac, random_frac, tournament_size, gen);
+
+        population = next_gen;
 
         // std::string output_dir = base_dir + "/gen" + std::to_string(gen + 1);
         // ga.save_generation(next_gen, output_dir);

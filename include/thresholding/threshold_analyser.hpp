@@ -1,4 +1,5 @@
-#pragma once
+#ifndef THRESHOLD_ANALYSER_H
+#define THRESHOLD_ANALYSER_H
 
 #include "./threshold_structs.h"
 #include <cmath>
@@ -31,3 +32,5 @@ class SignalProcessor {
   private:
     ThresholdParameters p;
 };
+
+#endif
