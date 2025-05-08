@@ -1,6 +1,7 @@
 #ifndef GENETIC_ALGORITHM_H
 #define GENETIC_ALGORITHM_H
 
+#include "genetic_algorithm/ga_parameters.h"
 #include "neural_mass_model/parameters.h"
 #include "phenotype_struct.h"
 #include <random>
@@ -8,9 +9,7 @@
 #include <vector>
 class GeneticAlgorithm {
   public:
-    GeneticAlgorithm(ParameterBounds bounds, size_t total_size, double mutation_rate_init,
-                     double mutation_strength_init, double crossover_alpha_init,
-                     size_t max_generations);
+    GeneticAlgorithm(ParameterBounds bounds, GAParameters ga_params);
 
     // Create a new generation by loading from disk and evolving
     std::vector<Individual>
@@ -29,11 +28,12 @@ class GeneticAlgorithm {
   private:
     // Core GA parameters
     ParameterBounds bounds;
-    size_t total_size;
-    double mutation_rate_init;
-    double mutation_strength_init;
-    double crossover_alpha_init;
-    size_t max_generations;
+    GAParameters ga_params;
+    size_t total_size = ga_params.population_size;
+    double mutation_rate_init = ga_params.mutation_rate_init;
+    double mutation_strength_init = ga_params.mutation_strength_init;
+    double crossover_alpha_init = ga_params.crossover_alpha_init;
+    size_t max_generations = ga_params.num_generations;
     double current_mutation_strength;
     double current_mutation_rate;
     double crossover_alpha;
@@ -47,6 +47,8 @@ class GeneticAlgorithm {
     Individual best_phenotype(const std::vector<Individual> &population) const;
     std::vector<Individual> tournament_selection(const std::vector<Individual> &, size_t n,
                                                  size_t k) const;
+    std::vector<Individual> rank_selection(const std::vector<Individual> &population,
+                                           size_t num_selected) const;
     std::vector<Individual> generate_random_individuals(size_t count, std::mt19937 &rng) const;
 
     // Variation
@@ -57,6 +59,8 @@ class GeneticAlgorithm {
 
     void mutate(ModelParameters &individual, std::mt19937 &rng, double mutation_rate,
                 double mutation_strength) const;
+
+    void update_adaptive_parameters(size_t generation, const Individual &best_phenotype);
 
     void clamp(ModelParameters &individual) const;
     void stagnation_detect(const Individual &best_phenotype);

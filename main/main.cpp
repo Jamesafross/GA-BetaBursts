@@ -61,9 +61,7 @@ int main() {
     double random_frac = 0.10;
     size_t tournament_size = 3;
 
-    GeneticAlgorithm ga(bounds, ga_p.population_size, ga_p.mutation_rate_init,
-                        ga_p.mutation_strength_init, ga_p.crossover_alpha_init,
-                        ga_p.num_generations);
+    GeneticAlgorithm ga(bounds, ga_p);
 
     std::random_device rd;
     std::mt19937 rng(rd());

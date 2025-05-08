@@ -1,4 +1,5 @@
 #include "genetic_algorithm/genetic_algorithm.hpp"
+#include "genetic_algorithm/ga_parameters.h"
 #include "neural_mass_model/json_utils.hpp"
 #include "neural_mass_model/parameter_utils.hpp"
 
@@ -29,12 +30,8 @@
     F(deltai) F(sigma_se) F(sigma_si) F(kappa_gapee) F(kappa_gapei) F(kappa_gapii) F(eta0e) F(eta0i)
 
 // === Constructor ===
-GeneticAlgorithm::GeneticAlgorithm(ParameterBounds bounds, size_t total_size,
-                                   double mutation_rate_init, double mutation_strength_init,
-                                   double crossover_alpha_init, size_t max_generations)
-    : bounds(bounds), total_size(total_size), mutation_rate_init(mutation_rate_init),
-      mutation_strength_init(mutation_strength_init), crossover_alpha_init(crossover_alpha_init),
-      max_generations(max_generations) {}
+GeneticAlgorithm::GeneticAlgorithm(ParameterBounds bounds, GAParameters ga_params)
+    : bounds(bounds), ga_params(ga_params) {}
 // === Load individuals from a directory ===
 std::vector<Individual> GeneticAlgorithm::load_generation(const std::string &dir) const {
     std::vector<Individual> generation;
@@ -114,6 +111,33 @@ GeneticAlgorithm::tournament_selection(const std::vector<Individual> &population
             tournament.begin(), tournament.end(),
             [](const Individual &a, const Individual &b) { return a.fitness < b.fitness; });
         selected.push_back(best);
+    }
+
+    return selected;
+}
+
+std::vector<Individual> GeneticAlgorithm::rank_selection(const std::vector<Individual> &population,
+                                                         size_t num_selected) const {
+    std::vector<Individual> sorted = population;
+    std::sort(sorted.begin(), sorted.end(),
+              [](const Individual &a, const Individual &b) { return a.fitness < b.fitness; });
+
+    // Assign selection probabilities based on rank (linear scheme)
+    const size_t N = sorted.size();
+    std::vector<double> selection_probs(N);
+    double sum_ranks = static_cast<double>(N * (N + 1)) / 2.0;
+
+    for (size_t i = 0; i < N; ++i) {
+        selection_probs[i] = static_cast<double>(N - i) / sum_ranks; // rank 1 gets highest prob
+    }
+
+    // Sample individuals based on rank probabilities
+    std::discrete_distribution<size_t> dist(selection_probs.begin(), selection_probs.end());
+    std::mt19937 rng(std::random_device{}());
+
+    std::vector<Individual> selected;
+    for (size_t i = 0; i < num_selected; ++i) {
+        selected.push_back(sorted[dist(rng)]);
     }
 
     return selected;
@@ -243,27 +267,37 @@ std::vector<Individual> GeneticAlgorithm::generate_next_generation_from_director
     return new_gen;
 }
 
-void GeneticAlgorithm::update_adaptive_parameters(size_t generation) {
+void GeneticAlgorithm::update_adaptive_parameters(size_t generation,
+                                                  const Individual &best_phenotype) {
     if (generation == 0) {
         current_mutation_rate = mutation_rate_init;
         current_mutation_strength = mutation_strength_init;
-        crossover_alpha = crossover_alpha_init; // start exploratory
-    } else {
-        if (stagnation_flag) {
-            current_mutation_rate *= 1.05;
-            current_mutation_strength *= 1.05;
-            crossover_alpha *= 1.05;
-        } else {
-            current_mutation_rate *= 0.95;
-            current_mutation_strength *= 0.95;
-            crossover_alpha *= 0.95;
-        }
-
-        // Clamp alpha within a reasonable range
-        crossover_alpha = std::clamp(crossover_alpha, 0.1, 1.0);
-        current_mutation_rate = std::clamp(current_mutation_rate, 1e-4, 1.0);
-        current_mutation_strength = std::clamp(current_mutation_strength, 1e-4, 10.0);
+        crossover_alpha = crossover_alpha_init;
+        return;
     }
+
+    double delta = running_best_fitness - best_phenotype.fitness;
+    running_best_fitness = best_phenotype.fitness;
+
+    // Sensitivity thresholds
+    if (delta > 0.1) { // big gain → exploit
+        current_mutation_rate *= 0.1;
+        current_mutation_strength *= 0.1;
+        crossover_alpha *= 0.9;
+    } else if (delta < 0.00) {
+        current_mutation_rate *= 1.1;
+        current_mutation_strength *= 1.1;
+        crossover_alpha *= 1.05;
+    } else { // moderate gain → gentle decay
+        current_mutation_rate *= 0.95;
+        current_mutation_strength *= 0.95;
+        crossover_alpha *= 0.98;
+    }
+
+    // Clamp within safe bounds
+    current_mutation_rate = std::clamp(current_mutation_rate, 1e-4, 1.0);
+    current_mutation_strength = std::clamp(current_mutation_strength, 1e-4, 10.0);
+    crossover_alpha = std::clamp(crossover_alpha, 0.05, 1.0);
 }
 
 void GeneticAlgorithm::stagnation_detect(const Individual &best_phenotype) {
@@ -291,11 +325,11 @@ GeneticAlgorithm::generate_next_generation(std::vector<Individual> population, d
     size_t n_random = static_cast<size_t>(random_frac * total_size);
     size_t n_variants = total_size - n_elite;
     auto best = best_phenotype(population);
-    stagnation_detect(best);
-    update_adaptive_parameters(generation);
+
+    update_adaptive_parameters(generation, best);
 
     auto elites = select_top_n(population, n_elite);
-    auto parents = tournament_selection(population, n_variants - n_random, tournament_size);
+    auto parents = rank_selection(population, n_variants - n_random);
 
     std::mt19937 rng(std::random_device{}());
     auto children = generate_variants(parents, n_variants, n_random, rng, generation);
