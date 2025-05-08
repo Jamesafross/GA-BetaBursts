@@ -1,13 +1,8 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include <algorithm>
 #include <boost/numeric/odeint.hpp>
 #include <cmath>
-#include <fstream>
-#include <iostream>
-#include <random>
-#include <vector>
 
 using namespace std;
 

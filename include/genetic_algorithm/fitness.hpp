@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FITNESS_H
+#define FITNESS_H
 
 #include <string>
 #include <unordered_map>
@@ -44,3 +45,5 @@ class FitnessEvaluator {
         const std::vector<double> &real_duration, const std::vector<double> &real_amplitude,
         double last_gen_mean_emd, double last_gen_mean_ks, double last_gen_mean_stat) const;
 };
+
+#endif

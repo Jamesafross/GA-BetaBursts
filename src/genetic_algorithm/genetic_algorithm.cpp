@@ -1,5 +1,6 @@
 #include "genetic_algorithm/genetic_algorithm.hpp"
 #include "neural_mass_model/json_utils.hpp"
+#include "neural_mass_model/parameter_utils.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -28,10 +29,11 @@
     F(deltai) F(sigma_se) F(sigma_si) F(kappa_gapee) F(kappa_gapei) F(kappa_gapii) F(eta0e) F(eta0i)
 
 // === Constructor ===
-GeneticAlgorithm::GeneticAlgorithm(ParameterBounds bounds, size_t total_size, double mutation_rate,
-                                   double mutation_strength, size_t max_generations)
-    : bounds(bounds), total_size(total_size), mutation_rate(mutation_rate),
-      mutation_strength(mutation_strength), max_generations(max_generations) {}
+GeneticAlgorithm::GeneticAlgorithm(ParameterBounds bounds, size_t total_size,
+                                   double mutation_rate_init, double mutation_strength_init,
+                                   size_t max_generations)
+    : bounds(bounds), total_size(total_size), mutation_rate_init(mutation_rate_init),
+      mutation_strength_init(mutation_strength_init), max_generations(max_generations) {}
 
 // === Load individuals from a directory ===
 std::vector<Individual> GeneticAlgorithm::load_generation(const std::string &dir) const {
@@ -157,7 +159,8 @@ GeneticAlgorithm::crossover(const ModelParameters &parent1, const ModelParameter
 }
 
 // === Mutation ===
-void GeneticAlgorithm::mutate(ModelParameters &individual, std::mt19937 &rng) const {
+void GeneticAlgorithm::mutate(ModelParameters &individual, std::mt19937 &rng, double mutation_rate,
+                              double mutation_strength) const {
     std::uniform_real_distribution<> prob(0.0, 1.0);
     std::normal_distribution<> noise(0.0, mutation_strength);
 
@@ -176,6 +179,8 @@ std::vector<ModelParameters>
 GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size_t n_offspring,
                                     size_t n_random, std::mt19937 &rng, size_t generation) const {
     std::vector<ModelParameters> children;
+    double mutation_strength = get_mutation_strength(generation);
+    double mutation_rate = get_mutation_rate(generation);
 
     std::uniform_int_distribution<size_t> dis(0, parents.size() - 1);
     while (children.size() < n_offspring - 1) {
@@ -183,8 +188,8 @@ GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size
         const auto &p2 = parents[dis(rng)].parameters;
 
         auto [c1, c2] = crossover(p1, p2, rng, generation);
-        mutate(c1, rng);
-        mutate(c2, rng);
+        mutate(c1, rng, mutation_rate, mutation_strength);
+        mutate(c2, rng, mutation_rate, mutation_strength);
         clamp(c1);
         clamp(c2);
         children.push_back(c1);
@@ -194,7 +199,7 @@ GeneticAlgorithm::generate_variants(const std::vector<Individual> &parents, size
 
     if (children.size() < n_offspring) {
         auto [c, _] = crossover(parents[0].parameters, parents[1].parameters, rng, generation);
-        mutate(c, rng);
+        mutate(c, rng, mutation_rate, mutation_strength);
         clamp(c);
         children.push_back(c);
     }
@@ -235,3 +240,11 @@ std::vector<Individual> GeneticAlgorithm::generate_next_generation_from_director
 
     return new_gen;
 }
+
+double GeneticAlgorithm::get_mutation_rate(size_t generation) const {
+    return pow(0.95, static_cast<int>(generation) + 1) * mutation_rate_init;
+};
+
+double GeneticAlgorithm::get_mutation_strength(size_t generation) const {
+    return pow(0.95, static_cast<int>(generation) + 1) * mutation_strength_init;
+};

@@ -13,6 +13,7 @@
 #include "utils/python_plot.hpp"
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <json.hpp>
 #include <random>
@@ -49,6 +50,7 @@ void clear_summary_file(const std::string &path) {
 const std::string meg_output_dir = OUTPUT_PATH + "/meg";
 
 int main() {
+
     GAParameters ga_p;
     ThresholdParameters th_params;
     FitnessEvaluator evaluator;
@@ -58,8 +60,8 @@ int main() {
     double random_frac = 0.10;
     size_t tournament_size = 3;
 
-    GeneticAlgorithm ga(bounds, ga_p.population_size, ga_p.mutation_rate, 0.1,
-                        ga_p.num_generations);
+    GeneticAlgorithm ga(bounds, ga_p.population_size, ga_p.mutation_rate_init,
+                        ga_p.mutation_strength_init, ga_p.num_generations);
 
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -101,6 +103,7 @@ int main() {
         std::cout << "\n=== Generation " << gen << " ===\n";
 
         std::string gen_dir = OUTPUT_PATH + "/model/generation_" + std::to_string(gen);
+
         std::string stats_dir = gen_dir + "/stats";
         std::string sim_dir = gen_dir + "/simulated_data";
         std::string params_dir = gen_dir + "/parameters";
@@ -109,7 +112,8 @@ int main() {
         ensure_output_directories(gen_dir, stats_dir, sim_dir, params_dir);
 
         // --- Run simulations and evaluate ---
-        for (size_t i = 0; i < population.size(); ++i) {
+        for (size_t i = 0; i < ga_p.population_size; ++i) {
+
             std::string base = "phenotype_" + std::to_string(i);
             std::string sim_csv = base + "_simulated.csv";
             std::string stats_csv = base + "_stats.csv";
@@ -119,7 +123,7 @@ int main() {
 
             auto start = std::chrono::high_resolution_clock::now();
 
-            run_neural_mass(population[i], opts, sim_dir, sim_csv);
+            run_neural_mass(population[i].parameters, opts, sim_dir, sim_csv);
             th_params.original_fs = 200.0;
             generate_model_stats(sim_dir, stats_dir, sim_csv, stats_csv, th_params);
 
@@ -129,7 +133,7 @@ int main() {
 
             double fitness = result.total;
 
-            save_parameters_with_fitness(population[i], result, params_dir, json_file);
+            save_parameters_with_fitness(population[i].parameters, result, params_dir, json_file);
 
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end - start;

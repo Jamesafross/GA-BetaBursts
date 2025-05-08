@@ -68,12 +68,12 @@ ModelParameters sample_random_parameters(const ParameterBounds &bounds, std::mt1
     return decode_parameters(genome, bounds);
 }
 
-std::vector<ModelParameters> generate_parameter_population(size_t n, const ParameterBounds &bounds,
-                                                           std::mt19937 &rng) {
-    std::vector<ModelParameters> population;
+std::vector<Individual> generate_parameter_population(size_t n, const ParameterBounds &bounds,
+                                                      std::mt19937 &rng) {
+    std::vector<Individual> population;
     population.reserve(n);
     for (size_t i = 0; i < n; ++i) {
-        population.push_back(sample_random_parameters(bounds, rng));
+        population[i].parameters = sample_random_parameters(bounds, rng);
     }
     return population;
 }

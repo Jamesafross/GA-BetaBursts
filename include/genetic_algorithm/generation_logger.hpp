@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef GENERATION_LOGGER_H
+#define GENERATION_LOGGER_H
+
 #include <json.hpp>
 #include <string>
 #include <tuple>
@@ -23,3 +26,5 @@ class GenerationLogger {
 
     void append_to_summary_log(const nlohmann::json &entry) const;
 };
+
+#endif

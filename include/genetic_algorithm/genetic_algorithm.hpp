@@ -1,21 +1,15 @@
-#pragma once
+#ifndef GENETIC_ALGORITHM_H
+#define GENETIC_ALGORITHM_H
 
-#include "neural_mass_model/parameter_utils.hpp"
 #include "neural_mass_model/parameters.h"
+#include "phenotype_struct.h"
 #include <random>
 #include <string>
 #include <vector>
-
-struct Individual {
-    ModelParameters parameters;
-    double fitness;
-    std::string source_path;
-};
-
 class GeneticAlgorithm {
   public:
-    GeneticAlgorithm(ParameterBounds bounds, size_t total_size, double mutation_rate,
-                     double mutation_strength, size_t max_generations);
+    GeneticAlgorithm(ParameterBounds bounds, size_t total_size, double mutation_rate_init,
+                     double mutation_strength_init, size_t max_generations);
 
     // Create a new generation by loading from disk and evolving
     std::vector<Individual>
@@ -31,8 +25,8 @@ class GeneticAlgorithm {
     // Core GA parameters
     ParameterBounds bounds;
     size_t total_size;
-    double mutation_rate;
-    double mutation_strength;
+    double mutation_rate_init;
+    double mutation_strength_init;
     size_t max_generations;
 
     // Evolution steps
@@ -48,11 +42,18 @@ class GeneticAlgorithm {
                                                           std::mt19937 &rng,
                                                           size_t generation) const;
 
-    void mutate(ModelParameters &individual, std::mt19937 &rng) const;
+    void mutate(ModelParameters &individual, std::mt19937 &rng, double mutation_rate,
+                double mutation_strength) const;
 
     void clamp(ModelParameters &individual) const;
 
     std::vector<ModelParameters> generate_variants(const std::vector<Individual> &parents,
                                                    size_t n_offspring, size_t n_random,
                                                    std::mt19937 &rng, size_t generation) const;
+
+    double get_mutation_rate(size_t generation) const;
+
+    double get_mutation_strength(size_t generation) const;
 };
+
+#endif

@@ -1,39 +1,50 @@
 cmake_minimum_required(VERSION 3.14)
 project(BetaBurstsGeneticAlgorithm)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# === Compile flags ===
 add_compile_options(-Wall -Wextra -O2)
 
-# === External libraries ===
+# === External Libraries ===
 
-# FFTW via pkg-config
+# FFTW
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFTW REQUIRED IMPORTED_TARGET fftw3)
 
 # OpenMP
 find_package(OpenMP REQUIRED)
 
-# === Include directories ===
-include_directories(
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/external/iir1
+# CMA-ES
+find_library(CMAES_LIBRARY NAMES cmaes PATHS /usr/local/lib REQUIRED)
+
+# NLopt
+find_path(NLOPT_INCLUDE_DIR nlopt.hpp PATHS /usr/include /usr/local/include)
+find_library(NLOPT_LIBRARY nlopt PATHS /usr/lib /usr/local/lib)
+
+if(NLOPT_INCLUDE_DIR AND NLOPT_LIBRARY)
+    message(STATUS "Found NLopt: ${NLOPT_LIBRARY}")
+else()
+    message(FATAL_ERROR "NLopt not found")
+endif()
+
+# === Global Include Paths ===
+set(PROJECT_INCLUDES
+    ${PROJECT_SOURCE_DIR}/include                 # your own headers
     ${PROJECT_SOURCE_DIR}/external
+    ${PROJECT_SOURCE_DIR}/external/iir1
+    /usr/include/eigen3                           # Eigen headers (header-only)
+    ${NLOPT_INCLUDE_DIR}
 )
 
-# === Shared definitions ===
+# === Global Definitions ===
 set(DATA_DIR "${PROJECT_SOURCE_DIR}/data")
 set(OUTPUT_DIR "${PROJECT_SOURCE_DIR}/output")
-
-# Set absolute path to the python_plotting directory
 set(PYTHON_PLOTTING_DIR "${CMAKE_SOURCE_DIR}/python_plotting")
-
-# Pass it as a definition to the compiler
 add_definitions(-DPYTHON_PLOTTING_DIR="${PYTHON_PLOTTING_DIR}")
 
-# === Shared sources ===
+# === Sources ===
 file(GLOB_RECURSE SUPPORT_SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
 # === Executable: ga_run ===
@@ -42,15 +53,17 @@ add_executable(ga_run
     ${SUPPORT_SOURCES}
 )
 
+target_include_directories(ga_run PRIVATE ${PROJECT_INCLUDES})
 target_compile_definitions(ga_run PRIVATE
     DATA_DIR="${DATA_DIR}"
     OUTPUT_DIR="${OUTPUT_DIR}"
 )
-
 target_link_libraries(ga_run PRIVATE
     PkgConfig::FFTW
     OpenMP::OpenMP_CXX
     ${PROJECT_SOURCE_DIR}/external/iir1/libiir.so
+    ${CMAES_LIBRARY}
+    ${NLOPT_LIBRARY}
 )
 
 # === Executable: meg_burst_stats ===
@@ -59,13 +72,15 @@ add_executable(meg_burst_stats
     ${SUPPORT_SOURCES}
 )
 
+target_include_directories(meg_burst_stats PRIVATE ${PROJECT_INCLUDES})
 target_compile_definitions(meg_burst_stats PRIVATE
     DATA_DIR="${DATA_DIR}"
     OUTPUT_DIR="${OUTPUT_DIR}"
 )
-
 target_link_libraries(meg_burst_stats PRIVATE
     PkgConfig::FFTW
     OpenMP::OpenMP_CXX
     ${PROJECT_SOURCE_DIR}/external/iir1/libiir.so
+    ${CMAES_LIBRARY}
+    ${NLOPT_LIBRARY}
 )
