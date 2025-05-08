@@ -96,7 +96,7 @@ struct ParameterBounds {
 
 struct SolverParameters {
     double dt = 0.01;                 // time step in milliseconds (ms)
-    double t_seconds = 100.0;         // total simulation time in seconds
+    double t_seconds = 150.0;         // total simulation time in seconds
     double save_start_seconds = 20.0; // start saving after this many seconds
     size_t n_trial = 100;
 
