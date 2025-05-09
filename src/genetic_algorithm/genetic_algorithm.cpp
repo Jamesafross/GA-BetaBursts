@@ -283,19 +283,23 @@ void GeneticAlgorithm::update_adaptive_parameters(size_t generation,
     double delta = running_best_fitness - best_phenotype.fitness;
     running_best_fitness = best_phenotype.fitness;
 
-    // Sensitivity thresholds
-    if (delta > 0.1) { // big gain → exploit
-        current_mutation_rate *= 0.1;
-        current_mutation_strength *= 0.1;
-        crossover_alpha *= 0.9;
+    // Compute dampening factor: starts small, approaches 1.0 as generations increase
+    double damp =
+        std::min(1.0, static_cast<double>(generation) / 10.0); // Full effect after ~10 generations
+
+    // Sensitivity thresholds with damping
+    if (delta > 10) {                              // big gain → exploit
+        current_mutation_rate *= 1.0 - damp * 0.9; // equivalent to *= 0.1 when damp = 1
+        current_mutation_strength *= 1.0 - damp * 0.9;
+        crossover_alpha *= 1.0 - damp * 0.1;
     } else if (delta < 0.00) {
-        current_mutation_rate *= 1.1;
-        current_mutation_strength *= 1.1;
-        crossover_alpha *= 1.05;
+        current_mutation_rate *= 1.0 + damp * 0.1;
+        current_mutation_strength *= 1.0 + damp * 0.1;
+        crossover_alpha *= 1.0 + damp * 0.05;
     } else { // moderate gain → gentle decay
-        current_mutation_rate *= 0.95;
-        current_mutation_strength *= 0.95;
-        crossover_alpha *= 0.98;
+        current_mutation_rate *= 1.0 - damp * 0.05;
+        current_mutation_strength *= 1.0 - damp * 0.05;
+        crossover_alpha *= 1.0 - damp * 0.02;
     }
 
     // Clamp within safe bounds
