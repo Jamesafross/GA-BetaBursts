@@ -10,6 +10,7 @@ struct FitnessResult {
     double emd_fitness;
     double ks_fitness;
     double stat_fitness;
+    double raw;
 };
 
 class FitnessEvaluator {

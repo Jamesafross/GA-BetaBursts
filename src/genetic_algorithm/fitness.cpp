@@ -18,28 +18,35 @@ FitnessResult FitnessEvaluator::compute_fitness(
 
     // constexpr double eps = 1e-8;
     constexpr double min_ref = 1e-3; // Lower bound to avoid dividing by near-zero
+    double eps = 1e-8;
 
-    // --- Scaling factors ---
-    auto max_safe = [](const std::vector<double> &v) {
-        return std::max(*std::max_element(v.begin(), v.end()), 1.0);
-    };
+    double weight_rate = 1.0 / (mean(real_rate) + eps);
+    double weight_duration = 1.0 / (mean(real_duration) + eps);
+    double weight_amplitude = 1.0 / (mean(real_amplitude) + eps);
 
-    double weight_rate = 1.0 / max_safe(real_rate);
-    double weight_duration = 1.0 / max_safe(real_duration);
-    double weight_amplitude = 1.0 / max_safe(real_amplitude);
+    double raw_emd = wasserstein_distance(model_rate, real_rate) +
+                     wasserstein_distance(model_duration, real_duration) +
+                     wasserstein_distance(model_amplitude, real_amplitude);
 
     // --- Compute distances ---
     double emd_total = weight_rate * wasserstein_distance(model_rate, real_rate) +
                        weight_duration * wasserstein_distance(model_duration, real_duration) +
                        weight_amplitude * wasserstein_distance(model_amplitude, real_amplitude);
 
-    double stat_total = stat_diff(model_rate, real_rate) +
-                        stat_diff(model_duration, real_duration) +
-                        stat_diff(model_amplitude, real_amplitude);
+    double raw_stat = stat_diff(model_rate, real_rate) + stat_diff(model_duration, real_duration) +
+                      stat_diff(model_amplitude, real_amplitude);
 
-    double ks_total = ks_distance(model_rate, real_rate) +
-                      ks_distance(model_duration, real_duration) +
-                      ks_distance(model_amplitude, real_amplitude);
+    double stat_total = weight_rate * stat_diff(model_rate, real_rate) +
+                        weight_duration * stat_diff(model_duration, real_duration) +
+                        weight_amplitude * stat_diff(model_amplitude, real_amplitude);
+
+    double raw_ks = ks_distance(model_rate, real_rate) +
+                    ks_distance(model_duration, real_duration) +
+                    ks_distance(model_amplitude, real_amplitude);
+
+    double ks_total = weight_rate * ks_distance(model_rate, real_rate) +
+                      weight_duration * ks_distance(model_duration, real_duration) +
+                      weight_duration * ks_distance(model_amplitude, real_amplitude);
 
     // --- Normalize relative to previous generation ---
     double norm_emd = emd_total / std::max(last_gen_mean_emd, min_ref);
@@ -51,8 +58,10 @@ FitnessResult FitnessEvaluator::compute_fitness(
     double penalized_ks = std::pow(norm_ks, 1.2);   // softer amplification
 
     double total_fitness = penalized_emd + penalized_ks + norm_stat;
+    double raw_fitness = raw_emd + raw_stat + raw_ks;
 
     return FitnessResult{.total = total_fitness,
+                         .raw = raw_fitness,
                          .emd_fitness = emd_total,
                          .ks_fitness = ks_total,
                          .stat_fitness = stat_total};
