@@ -61,10 +61,10 @@ FitnessResult FitnessEvaluator::compute_fitness(
     double raw_fitness = raw_emd + raw_stat + raw_ks;
 
     return FitnessResult{.total = total_fitness,
-                         .raw = raw_fitness,
                          .emd_fitness = emd_total,
                          .ks_fitness = ks_total,
-                         .stat_fitness = stat_total};
+                         .stat_fitness = stat_total,
+                         .raw = raw_fitness};
 }
 
 // === Distance calculation ===
