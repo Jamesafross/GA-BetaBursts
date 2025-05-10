@@ -1,6 +1,7 @@
 #ifndef GENERATION_LOGGER_H
 #define GENERATION_LOGGER_H
 
+#include "genetic_algorithm/fitness.hpp"
 #include <json.hpp>
 #include <string>
 #include <tuple>
@@ -16,11 +17,12 @@ class GenerationLogger {
     std::string summary_path;
 
     // Helper functions
-    std::tuple<std::vector<std::pair<int, double>>, double, size_t, double, size_t, double, size_t>
+    std::tuple<std::vector<std::pair<int, FitnessResult>>, double, size_t, double, size_t, double,
+               size_t>
     load_phenotype_data(const std::string &directory) const;
 
     std::tuple<double, double, int>
-    compute_fitness_stats(const std::vector<std::pair<int, double>> &infos) const;
+    compute_fitness_stats(const std::vector<std::pair<int, FitnessResult>> &infos) const;
 
     void append_to_summary_log(const nlohmann::json &entry) const;
 };

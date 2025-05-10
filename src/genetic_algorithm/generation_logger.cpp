@@ -32,13 +32,10 @@ void GenerationLogger::append_summary_from_directory(const std::string &director
     append_to_summary_log(summary_entry);
 }
 
-std::tuple<std::vector<std::pair<int, double>>, double, size_t, double, size_t, double, size_t>
+std::tuple<std::vector<std::pair<int, FitnessResult>>, double, size_t, double, size_t, double,
+           size_t>
 GenerationLogger::load_phenotype_data(const std::string &directory) const {
-    std::vector<std::pair<int, double>> infos;
-    double emd_sum = 0.0, ks_sum = 0.0, stat_sum = 0.0;
-    ;
-    size_t emd_count = 0, ks_count = 0, stat_count = 0.0;
-    ;
+    std::vector<std::pair<int, FitnessResult>> infos;
 
     std::regex number_pattern(R"((\d+))");
     std::smatch match;
@@ -55,50 +52,72 @@ GenerationLogger::load_phenotype_data(const std::string &directory) const {
             nlohmann::json j;
             in >> j;
 
-            if (j.contains("fitness")) {
-                double fitness = j["fitness"].get<double>();
-                std::string filename = entry.path().filename().string();
-                int num = -1;
-                if (std::regex_search(filename, match, number_pattern))
-                    num = std::stoi(match[1]);
-                infos.emplace_back(num, fitness);
-            }
+            if (!j.contains("fitness"))
+                continue;
 
-            if (j.contains("emd_fitness")) {
-                emd_sum += j["emd_fitness"].get<double>();
-                ++emd_count;
-            }
+            FitnessResult result{};
+            result.total = j.value("fitness", 0.0);
+            result.emd_fitness = j.value("emd_fitness", 0.0);
+            result.ks_fitness = j.value("ks_fitness", 0.0);
+            result.stat_fitness = j.value("stat_fitness", 0.0);
+            result.raw_total = j.value("raw_total", 0.0);
+            result.raw_emd = j.value("raw_emd", 0.0);
+            result.raw_ks = j.value("raw_ks", 0.0);
+            result.raw_stat = j.value("raw_stat", 0.0);
 
-            if (j.contains("ks_fitness")) {
-                ks_sum += j["ks_fitness"].get<double>();
-                ++ks_count;
-            }
-
-            if (j.contains("stat_fitness")) {
-                stat_sum += j["stat_fitness"].get<double>();
-                ++stat_count;
-            }
+            std::string filename = entry.path().filename().string();
+            int num = -1;
+            if (std::regex_search(filename, match, number_pattern))
+                num = std::stoi(match[1]);
+            infos.emplace_back(num, result);
 
         } catch (const std::exception &e) {
             std::cerr << "Error reading " << entry.path() << ": " << e.what() << "\n";
         }
     }
 
+    // Sort by total fitness (lower is better)
+    std::sort(infos.begin(), infos.end(),
+              [](const auto &a, const auto &b) { return a.second.total < b.second.total; });
+
+    // Keep only top 10
+    if (infos.size() > 10)
+        infos.resize(10);
+
+    // Compute means across top 10 (or fewer)
+    double emd_sum = 0.0, ks_sum = 0.0, stat_sum = 0.0;
+    size_t emd_count = 0, ks_count = 0, stat_count = 0;
+
+    for (const auto &[_, res] : infos) {
+        if (res.emd_fitness != 0.0) {
+            emd_sum += res.emd_fitness;
+            ++emd_count;
+        }
+        if (res.ks_fitness != 0.0) {
+            ks_sum += res.ks_fitness;
+            ++ks_count;
+        }
+        if (res.stat_fitness != 0.0) {
+            stat_sum += res.stat_fitness;
+            ++stat_count;
+        }
+    }
+
     return {infos, emd_sum, emd_count, ks_sum, ks_count, stat_sum, stat_count};
 }
 
-std::tuple<double, double, int>
-GenerationLogger::compute_fitness_stats(const std::vector<std::pair<int, double>> &infos) const {
+std::tuple<double, double, int> GenerationLogger::compute_fitness_stats(
+    const std::vector<std::pair<int, FitnessResult>> &infos) const {
     double best = std::numeric_limits<double>::infinity();
     double sum = 0.0;
     int best_pheno = -1;
 
-    for (const auto &[id, fit] : infos) {
-        if (fit < best) {
-            best = fit;
+    for (const auto &[id, res] : infos) {
+        if (res.total < best) {
+            best = res.total;
             best_pheno = id;
         }
-        sum += fit;
+        sum += res.total;
     }
 
     return {best, sum / infos.size(), best_pheno};

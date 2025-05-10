@@ -54,8 +54,8 @@ FitnessResult FitnessEvaluator::compute_fitness(
     double norm_stat = stat_total / std::max(last_gen_mean_stat, min_ref);
 
     // --- Optional amplification ---
-    double penalized_emd = std::pow(norm_emd, 1.5); // penalize large mismatches more
-    double penalized_ks = std::pow(norm_ks, 1.2);   // softer amplification
+    double penalized_emd = std::pow(norm_emd, 1.5);
+    double penalized_ks = std::pow(norm_ks, 1.2);
 
     double total_fitness = penalized_emd + penalized_ks + norm_stat;
     double raw_fitness = raw_emd + raw_stat + raw_ks;
@@ -64,7 +64,10 @@ FitnessResult FitnessEvaluator::compute_fitness(
                          .emd_fitness = emd_total,
                          .ks_fitness = ks_total,
                          .stat_fitness = stat_total,
-                         .raw = raw_fitness};
+                         .raw_total = raw_fitness,
+                         .raw_emd = raw_emd,
+                         .raw_ks = raw_ks,
+                         .raw_stat = raw_stat};
 }
 
 // === Distance calculation ===

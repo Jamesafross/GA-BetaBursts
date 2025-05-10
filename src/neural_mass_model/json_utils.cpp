@@ -94,6 +94,10 @@ void save_parameters_with_fitness(const ModelParameters &p, FitnessResult result
     j["emd_fitness"] = result.emd_fitness;
     j["stat_fitness"] = result.stat_fitness;
     j["ks_fitness"] = result.ks_fitness;
+    j["raw_fitness"] = result.raw_total;
+    j["raw_emd"] = result.raw_emd;
+    j["raw_ks"] = result.raw_ks;
+    j["raw_stat"] = result.raw_stat;
     j["timestamp"] = std::time(nullptr); // optional: Unix timestamp
     j["generation"] = 0;                 // optional: default to 0 unless provided elsewhere
 

@@ -288,7 +288,11 @@ void GeneticAlgorithm::update_adaptive_parameters(size_t generation,
         std::min(1.0, static_cast<double>(generation) / 10.0); // Full effect after ~10 generations
 
     // Sensitivity thresholds with damping
-    if (delta > 10) {                              // big gain → exploit
+    if (delta > 0.1) {                             // big gain → exploit
+        current_mutation_rate *= 1.0 - damp * 0.7; // equivalent to *= 0.1 when damp = 1
+        current_mutation_strength *= 1.0 - damp * 0.9;
+        crossover_alpha *= 1.0 - damp * 0.1;
+    } else if (delta > 0.2) {                      // big gain → exploit
         current_mutation_rate *= 1.0 - damp * 0.9; // equivalent to *= 0.1 when damp = 1
         current_mutation_strength *= 1.0 - damp * 0.9;
         crossover_alpha *= 1.0 - damp * 0.1;
