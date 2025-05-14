@@ -40,6 +40,7 @@ class GeneticAlgorithm {
     double running_best_fitness = std::numeric_limits<double>::infinity();
     bool stagnation_flag = 0;
     double stagnation_threshold = 0.02;
+    const double eta_c = 10.0;
 
     // Evolution steps
     std::vector<Individual> load_generation(const std::string &dir) const;

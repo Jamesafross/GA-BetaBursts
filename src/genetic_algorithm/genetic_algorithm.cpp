@@ -169,17 +169,41 @@ std::pair<ModelParameters, ModelParameters>
 GeneticAlgorithm::crossover(const ModelParameters &parent1, const ModelParameters &parent2,
                             std::mt19937 &rng, size_t /*generation*/) const {
     ModelParameters child1, child2;
-    const double alpha = 0.5;
+
+    auto sbx_crossover = [&](double p1, double p2, double lower,
+                             double upper) -> std::pair<double, double> {
+        if (std::abs(p1 - p2) < 1e-14) {
+            return {p1, p2};
+        }
+
+        double y1 = std::min(p1, p2);
+        double y2 = std::max(p1, p2);
+        std::uniform_real_distribution<> u_dist(0.0, 1.0);
+        double u = u_dist(rng);
+
+        double beta = 1.0 + (2.0 * (y1 - lower) / (y2 - y1));
+        double alpha = 2.0 - std::pow(beta, -(eta_c + 1.0));
+        double betaq;
+
+        if (u <= 1.0 / alpha)
+            betaq = std::pow(u * alpha, 1.0 / (eta_c + 1.0));
+        else
+            betaq = std::pow(1.0 / (2.0 - u * alpha), 1.0 / (eta_c + 1.0));
+
+        double c1 = 0.5 * ((y1 + y2) - betaq * (y2 - y1));
+        double c2 = 0.5 * ((y1 + y2) + betaq * (y2 - y1));
+
+        // Clamp to bounds
+        c1 = std::clamp(c1, lower, upper);
+        c2 = std::clamp(c2, lower, upper);
+
+        return {c1, c2};
+    };
+
+    auto b = bounds;
 
 #define CROSSOVER_FIELD(f)                                                                         \
-    {                                                                                              \
-        double min_val = std::min(parent1.f, parent2.f);                                           \
-        double max_val = std::max(parent1.f, parent2.f);                                           \
-        double range = max_val - min_val;                                                          \
-        std::uniform_real_distribution<> dist(min_val - alpha * range, max_val + alpha * range);   \
-        child1.f = dist(rng);                                                                      \
-        child2.f = dist(rng);                                                                      \
-    }
+    std::tie(child1.f, child2.f) = sbx_crossover(parent1.f, parent2.f, b.f##_min, b.f##_max);
 
     FOR_EACH_PARAM(CROSSOVER_FIELD)
 #undef CROSSOVER_FIELD
