@@ -49,15 +49,19 @@ FitnessResult FitnessEvaluator::compute_fitness(
                       weight_duration * ks_distance(model_amplitude, real_amplitude);
 
     // --- Normalize relative to previous generation ---
-    double norm_emd = emd_total / std::max(last_gen_mean_emd, min_ref);
-    double norm_ks = ks_total / std::max(last_gen_mean_ks, min_ref);
-    double norm_stat = stat_total / std::max(last_gen_mean_stat, min_ref);
+    // double norm_emd = emd_total / std::max(last_gen_mean_emd, min_ref);
+    // double norm_ks = ks_total / std::max(last_gen_mean_ks, min_ref);
+    // double norm_stat = stat_total / std::max(last_gen_mean_stat, min_ref);
+
+    double norm_emd = emd_total;
+    double norm_ks = ks_total;
+    double norm_stat = stat_total;
 
     // --- Optional amplification ---
     double penalized_emd = std::pow(norm_emd, 1.5);
     double penalized_ks = std::pow(norm_ks, 1.2);
 
-    double total_fitness = penalized_emd + penalized_ks + norm_stat;
+    double total_fitness = penalized_emd;
     double raw_fitness = raw_emd + raw_stat + raw_ks;
 
     return FitnessResult{.total = total_fitness,

@@ -57,8 +57,6 @@ int main() {
     FitnessEvaluator evaluator;
     auto bounds = ParameterBounds();
 
-    double elite_frac = 0.05;
-    double random_frac = 0.10;
     size_t tournament_size = 3;
 
     GeneticAlgorithm ga(bounds, ga_p);
@@ -154,8 +152,8 @@ int main() {
         // --- Clean up large simulated files ---
         cleanup_simulated_data(sim_dir);
 
-        std::vector<Individual> next_gen =
-            ga.generate_next_generation(population, elite_frac, random_frac, tournament_size, gen);
+        std::vector<Individual> next_gen = ga.generate_next_generation(
+            population, ga_p.elite_frac, ga_p.random_frac, tournament_size, gen);
 
         population = next_gen;
 
