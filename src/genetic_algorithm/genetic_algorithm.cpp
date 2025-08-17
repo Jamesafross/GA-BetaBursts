@@ -213,12 +213,19 @@ GeneticAlgorithm::crossover(const ModelParameters &parent1, const ModelParameter
 // === Mutation ===
 void GeneticAlgorithm::mutate(ModelParameters &individual, std::mt19937 &rng, double mutation_rate,
                               double mutation_strength) const {
-    std::uniform_real_distribution<> prob(0.0, 1.0);
-    std::normal_distribution<> noise(0.0, mutation_strength);
+    std::uniform_real_distribution<double> prob(0.0, 1.0);
+    std::normal_distribution<double> z(0.0, 1.0); // unit Gaussian
+
+    // Minimum absolute scale to avoid 'frozen' params near zero
+    constexpr double epsilon = 1e-3; // tune per your parameter scales
 
     auto maybe_mutate = [&](double &val) {
-        if (prob(rng) < mutation_rate)
-            val += noise(rng);
+        if (prob(rng) < mutation_rate) {
+            double scale = std::abs(val);
+            if (scale < epsilon)
+                scale = epsilon;                         // kick small/zero vals
+            val += z(rng) * (scale * mutation_strength); // percentage step
+        }
     };
 
 #define MUTATE_FIELD(f) maybe_mutate(individual.f);

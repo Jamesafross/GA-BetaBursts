@@ -1,27 +1,22 @@
+#include "meg/generate_real_stats.hpp"
 #include "thresholding/threshold_analyser.hpp"
 #include "thresholding/threshold_structs.h"
 #include "thresholding/utils.hpp"
-#include "meg/generate_real_stats.hpp"
-#include "paths.hpp"
-#include <iostream>
+#include <filesystem>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <string>
 #include <vector>
-#include <filesystem>
-#include <iomanip>
 
-const std::string input_prefix = DATA_PATH + "/meg/meg_data_";
-const std::string output_prefix = OUTPUT_PATH + "/meg/meg_burst_stats_";
-const std::string final_merged_output = OUTPUT_PATH + "/meg/meg_burst_stats_merged.csv";
-
-void generate_real_stats(ThresholdParameters params) {
+void generate_real_stats(ThresholdParameters params, const std::string &input_prefix,
+                         const std::string &output_prefix, const std::string &final_merged_output,
+                         int num_files, AnalysisMethod method) {
     const std::string extension = ".csv";
-    const int num_files = 3;  // Adjust if needed
-
-
     SignalProcessor processor(params);
+    std::cout << "Using method: " << (method == AnalysisMethod::Threshold ? "Threshold" : "HMM")
+              << "\n";
 
-    // Process each MEG file
     for (int file_idx = 1; file_idx <= num_files; ++file_idx) {
         std::string input_file = input_prefix + std::to_string(file_idx) + extension;
         std::string output_file = output_prefix + std::to_string(file_idx) + extension;
@@ -39,8 +34,8 @@ void generate_real_stats(ThresholdParameters params) {
         std::size_t total_trials = meg_trials.size();
         for (std::size_t i = 0; i < total_trials; ++i) {
             auto stats = processor.analyze_current_trace(meg_trials[i]);
-            out << file_idx << "," << i << "," << stats.burst_rate << ","
-                << stats.mean_duration << "," << stats.mean_amplitude << "\n";
+            out << file_idx << "," << i << "," << stats.burst_rate << "," << stats.mean_duration
+                << "," << stats.mean_amplitude << "\n";
 
             // Progress bar
             int width = 50;
@@ -50,8 +45,7 @@ void generate_real_stats(ThresholdParameters params) {
             std::cout << "\rFile " << file_idx << " progress [";
             for (int j = 0; j < width; ++j)
                 std::cout << (j < pos ? "=" : (j == pos ? ">" : " "));
-            std::cout << "] " << std::fixed << std::setprecision(1)
-                      << (progress * 100.0) << "%";
+            std::cout << "] " << std::fixed << std::setprecision(1) << (progress * 100.0) << "%";
             std::cout.flush();
         }
 

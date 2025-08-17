@@ -76,7 +76,9 @@ int main() {
     th_params.threshold_type = ThresholdType::Percentile;
 
     std::filesystem::create_directories(OUTPUT_PATH + "/meg");
-    generate_real_stats(th_params);
+    generate_real_stats(th_params, DATA_PATH + "/meg/meg_data_",
+                        OUTPUT_PATH + "/meg/meg_burst_stats_",
+                        OUTPUT_PATH + "/meg/meg_burst_stats_merged.csv");
 
     // logging
     std::string summary_path = OUTPUT_PATH + "/summary.json";
