@@ -43,11 +43,12 @@ class FitnessEvaluator {
     load_columns_by_name(const std::string &filename) const;
 
     // Main internal fitness calculator
-    FitnessResult compute_fitness(
-        const std::vector<double> &model_rate, const std::vector<double> &model_duration,
-        const std::vector<double> &model_amplitude, const std::vector<double> &real_rate,
-        const std::vector<double> &real_duration, const std::vector<double> &real_amplitude,
-        double last_gen_mean_emd, double last_gen_mean_ks, double last_gen_mean_stat) const;
+    FitnessResult compute_fitness(const std::vector<double> &model_rate,
+                                  const std::vector<double> &model_duration,
+                                  const std::vector<double> &model_amplitude,
+                                  const std::vector<double> &real_rate,
+                                  const std::vector<double> &real_duration,
+                                  const std::vector<double> &real_amplitude) const;
 };
 
 #endif

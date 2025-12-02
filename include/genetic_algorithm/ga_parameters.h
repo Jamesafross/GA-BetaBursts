@@ -5,7 +5,7 @@
 #include <cstddef>
 
 struct GAParameters {
-    size_t population_size = 500;    // Number of parameter sets per generation
+    size_t population_size = 10;    // Number of parameter sets per generation
     size_t num_generations = 500;    // Total number of generations to evolve
     double mutation_rate_init = 0.3; // Probability of mutation per gene
     double mutation_strength_init = 0.1;

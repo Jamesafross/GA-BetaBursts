@@ -10,11 +10,12 @@
 
 FitnessEvaluator::FitnessEvaluator() = default;
 
-FitnessResult FitnessEvaluator::compute_fitness(
-    const std::vector<double> &model_rate, const std::vector<double> &model_duration,
-    const std::vector<double> &model_amplitude, const std::vector<double> &real_rate,
-    const std::vector<double> &real_duration, const std::vector<double> &real_amplitude,
-    double last_gen_mean_emd, double last_gen_mean_ks, double last_gen_mean_stat) const {
+FitnessResult FitnessEvaluator::compute_fitness(const std::vector<double> &model_rate,
+                                                const std::vector<double> &model_duration,
+                                                const std::vector<double> &model_amplitude,
+                                                const std::vector<double> &real_rate,
+                                                const std::vector<double> &real_duration,
+                                                const std::vector<double> &real_amplitude) const {
 
     // constexpr double eps = 1e-8;
     constexpr double min_ref = 1e-3; // Lower bound to avoid dividing by near-zero
@@ -212,8 +213,7 @@ FitnessResult FitnessEvaluator::compute_fitness_from_csv(const std::string &mode
     }
 
     return compute_fitness(model["burst_rate"], model["mean_duration"], model["mean_amplitude"],
-                           real["burst_rate"], real["mean_duration"], real["mean_amplitude"],
-                           last_gen_mean_emd, last_gen_mean_ks, last_gen_mean_stat);
+                           real["burst_rate"], real["mean_duration"], real["mean_amplitude"]);
 }
 
 double FitnessEvaluator::mean(const std::vector<double> &v) const {

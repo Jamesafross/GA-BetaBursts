@@ -15,21 +15,19 @@ void matlab_print_input(const std::string &message) {
     using namespace matlab::data;
 
     try {
-        auto matlab = startMATLAB();
+        std::vector<std::u16string> options{u"-nojvm", u"-nodisplay", u"-nosplash"};
+        auto matlab = startMATLAB(options);
+
         ArrayFactory factory;
 
-        // Absolute path baked in via CMake: EXTERNAL_DIR="${PROJECT_SOURCE_DIR}/external"
         std::string matlabTestPath = std::string(EXTERNAL_DIR) + "/matlab_test";
         std::cout << "MATLAB_TEST_PATH = " << matlabTestPath << std::endl;
 
-        // 1) Send path to MATLAB and add it (with subfolders)
         matlab->setVariable(u"p", factory.createCharArray(to_u16(matlabTestPath)));
         matlab->eval(u"addpath(genpath(p))");
 
-        // 2) (Optional) Verify MATLAB sees the function
-        matlab->eval(u"disp(which('print_input'))"); // should print a full path
+        matlab->eval(u"disp(which('print_input'))");
 
-        // 3) Call your MATLAB function
         matlab->setVariable(u"msg", factory.createCharArray(to_u16(message)));
         matlab->eval(u"print_input(msg)");
 
